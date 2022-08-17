@@ -1,0 +1,14 @@
+option.VXHEIGHT=Voxel Volume Height
+value.VXHEIGHT.4=16 Blocks
+value.VXHEIGHT.5=25 Blocks
+value.VXHEIGHT.6=36 Blocks
+value.VXHEIGHT.7=49 Blocks
+value.VXHEIGHT.8=64 Blocks
+value.VXHEIGHT.9=81 Blocks
+value.VXHEIGHT.10=100 Blocks
+value.VXHEIGHT.11=121 Blocks
+value.VXHEIGHT.12=144 Blocks
+value.VXHEIGHT.13=169 Blocks
+value.VXHEIGHT.14=196 Blocks
+value.VXHEIGHT.15=225 Blocks
+value.VXHEIGHT.16=256 Blocks
