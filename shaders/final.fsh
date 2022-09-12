@@ -12,13 +12,13 @@ vec2 viewSize = vec2(viewWidth, viewHeight);
 
 void main() {
     vec3 color;
-    vec2 shadowcoord = (vec2(0.5) + ivec2(texcoord * viewSize) / 5) / shadowMapResolution;
+/*    vec2 shadowcoord = (vec2(0.5) + ivec2(texcoord * viewSize) / 5) / shadowMapResolution;
     if (max(shadowcoord.x, shadowcoord.y) < 1) {
         color = texture2D(shadowcolor0, shadowcoord).xyz;
     } else color = vec3(1);
     if (length(color - vec3(1)) < 0.01) {
-        color = texture2D(colortex0, texcoord).xyz;
-    }
+*/        color = texture2D(colortex0, texcoord).xyz;
+//    }
     /*RENDERTARGETS: 0*/
     gl_FragData[0] = vec4(color, 1);
 }

@@ -1,3 +1,4 @@
+#define MAPPING
 //// needs uniform vec3 cameraPosition, previousCameraPosition
 
 // voxel volume diameter
