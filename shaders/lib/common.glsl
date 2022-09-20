@@ -13,4 +13,9 @@ const float shadowDistanceRenderMul = 1.0;
 /*
 const int shadowcolor0Format = RGBA16;
 const int shadowcolor1Format = RGBA16;
+const int colortex8Format = RGBA16;
+const int colortex9Format = RGBA16;
 */
+
+const bool colortex8Clear = false;
+const bool colortex9Clear = false;

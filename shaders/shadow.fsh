@@ -25,6 +25,7 @@ vec2[8] offsets = vec2[8](
 void main() {
     bool emissive, alphatest, crossmodel, cuboid, full, entity;
     vec3 lightcol = vec3(0);
+    int lightlevel = 0;
     ivec3[2] bounds = ivec3[2](ivec3(0), ivec3(16));
     #include "/lib/materials/shadowchecks.glsl"
     if (emissive && length(lightcol) < 0.001) {
@@ -49,7 +50,7 @@ void main() {
     ivec4 packedData1 = ivec4(
         bounds[0].x + 16 * bounds[0].y + 256 * bounds[0].z + 4096 * bounds[1].x,
         bounds[1].y + 16 * bounds[1].z + 256 * blocktype,
-        spritelog,
+        spritelog + 16 * lightlevel,
         0
     );
     

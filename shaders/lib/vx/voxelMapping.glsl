@@ -31,3 +31,8 @@ vec3 getVxPos(vec3 worldPos) {
 vec3 getPreviousVxPos(vec3 worldPos) {
     return worldPos + (cameraPosition - floor(previousCameraPosition));
 }
+
+// determine if a position is within the voxelisation range
+bool isInRange(vec3 pos) {
+    return (max(abs(pos.x), abs(pos.z)) < vxRange / 2 && abs(pos.y) < VXHEIGHT * VXHEIGHT / 2);
+}

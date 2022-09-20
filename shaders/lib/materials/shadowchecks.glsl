@@ -160,3 +160,18 @@ if (cuboid) {
             break;
     }
 }
+if (emissive) {
+    switch (mat) {
+        case 10056:
+        case 10068:
+        case 10072:
+        case 10396:
+        case 10412:
+        case 10448:
+            lightlevel = 20;
+            break;
+        default:
+            lightlevel = 10;
+            break;
+    }
+}

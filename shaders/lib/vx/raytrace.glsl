@@ -37,9 +37,8 @@ vec4 raytrace(inout vec3 pos0, vec3 dir, sampler2D atlas) {
     vec4 raycolor = vec4(0);
     vxData voxeldata = readVxMap(getVxCoords(pos));
     if (voxeldata.trace) {
-        vec4 newcolor = handledata(voxeldata, atlas, pos, dir, i);
-        raycolor.rgb = mix(newcolor.rgb * newcolor.a, raycolor.rgb, raycolor.a);
-        raycolor.a += (1 - raycolor.a) * newcolor.a;
+        raycolor = handledata(voxeldata, atlas, pos, dir, i);
+        raycolor.rgb *= raycolor.a;
     }
     int k = 0;
     while (w < 1 && k < 2000 && raycolor.a < 0.95) {
@@ -47,7 +46,7 @@ vec4 raytrace(inout vec3 pos0, vec3 dir, sampler2D atlas) {
         voxeldata = readVxMap(getVxCoords(pos));
         if (voxeldata.trace) {
             vec4 newcolor = handledata(voxeldata, atlas, pos, dir, i);
-            raycolor.rgb = mix(newcolor.rgb * newcolor.a, raycolor.rgb, raycolor.a);
+            raycolor.rgb += (1 - raycolor.a) * newcolor.a * newcolor.rgb;
             raycolor.a += (1 - raycolor.a) * newcolor.a;
         }
         k += 1;

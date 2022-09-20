@@ -44,7 +44,8 @@ void main() {
             avgPos -= 0.05 * cnormal;
             break;
     }
-    if (max(abs(avgPos.x), abs(avgPos.z)) < vxRange / 2 && abs(avgPos.y) < VXHEIGHT * VXHEIGHT / 2) {
+    bool tracemat = (matV[0] != 50016);
+    if (max(abs(avgPos.x), abs(avgPos.z)) < vxRange / 2 && abs(avgPos.y) < VXHEIGHT * VXHEIGHT / 2 && tracemat) {
         vec2 coord = getVxCoords(avgPos);
         for (int i = 0; i < 3; i++) {
             texCoord = texCoordV[i];
