@@ -41,8 +41,8 @@ vxData readVxMap(vec2 coords) {
         data.lightcol = vec3(data0.x % 256, data0.x / 256, data0.y % 256) / 255;
         data.texcoord = vec2(16 * (data0.y / 256) + data0.z % 16, data0.z / 16) / 4095;
         data.mat = data0.w;
-        data.lower = vec3(data1.x % 16, (data1.x / 16) % 16, (data1.x / 256) % 16) / 16;
-        data.upper = vec3((data1.x / 4096) % 16, data1.y % 16, (data1.y / 16) % 16) / 16;
+        data.lower = vec3(data1.x % 16, (data1.x / 16) % 16, (data1.x / 256) % 16) / 16.0;
+        data.upper = vec3((data1.x / 4096) % 16, data1.y % 16, (data1.y / 16) % 16) / 16.0;
         int type = data1.y / 256;
         data.full = ((type / 4) % 2 == 1);
         data.cuboid = ((type / 16) % 2 == 1);
