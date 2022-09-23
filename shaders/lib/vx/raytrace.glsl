@@ -14,7 +14,7 @@ mat3 eye = mat3(
 vec4 handledata(vxData data, sampler2D atlas, vec3 pos, vec3 dir, int n) {
     vec2 spritecoord = vec2(n != 0 ? fract(pos.x) : fract(pos.z), n != 1 ? fract(-pos.y) : fract(pos.z)) * 2 - 1;
     vec2 texcoord = data.texcoord + data.spritesize * spritecoord / atlasSize;
-    vec4 color = texture2D(atlas, texcoord); 
+    vec4 color = data.alphatest ? texture2D(atlas, texcoord) : vec4(1);
     color.rgb *= data.emissive ? vec3(1) : data.lightcol;
     return color;
 }
@@ -60,6 +60,7 @@ vec4 raytrace(inout vec3 pos0, vec3 dir, sampler2D atlas) {
             }
         }
     }
+    pos0 = pos;
     raycolor = (k == 2000 ? vec4(1, 0, 0, 1) : raycolor);
     return raycolor;
 }

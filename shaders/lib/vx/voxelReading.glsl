@@ -1,4 +1,7 @@
 #define READING
+#if !defined MAPPING && defined TEX89
+#include "/lib/vx/voxelMapping.glsl"
+#endif
 
 struct vxData {
     vec2 texcoord;
@@ -52,3 +55,91 @@ vxData readVxMap(vec2 coords) {
     }
     return data;
 }
+
+#ifdef TEX89
+vec2 tex8size0 = vec2(textureSize(colortex8, 0));
+
+vec3 getOcclusion(vec3 vxPos) {
+    int k = 0;
+    for (; isInRange(2 * vxPos) && k < 4; k++) {
+        vxPos *= 2;
+    }
+    ivec4 lightData = ivec4(texture2D(colortex8, getVxCoords(vxPos) * shadowMapResolution / tex8size0) * 65535 + 0.5);
+    vec3 occlusion;
+    for (int i = 0; i < 3; i++) occlusion[i] = (lightData.y >> 3 * k + i) % 2;
+    return occlusion;
+}
+vec3 getBlockLight(vec3 vxPos, vec3 normal) {
+    vec3 lightCol = vec3(0);
+    vec3 vxPosOld = vxPos + floor(cameraPosition) - floor(previousCameraPosition);
+    vec3 referencePos = vxPosOld - 0.5;
+    if (isInRange(vxPosOld) && isInRange(vxPos)) {
+        vec2 vxCoordsFF = getVxCoords(vxPosOld) * shadowMapResolution / tex8size0;
+        vec2 vxCoordsFFlower = getVxCoords(vxPosOld - vec3(0.5)) * shadowMapResolution / tex8size0;
+        ivec4 lightData0 = ivec4(texture2D(colortex8, vxCoordsFF) * 65535 + 0.5);
+        ivec4 lightData1 = (lightData0.w >> 8 > 0) ? ivec4(texture2D(colortex9, vxCoordsFF) * 65535 + 0.5) : ivec4(0);
+        ivec4 lightData0Lower = ivec4(texture2D(colortex8, vxCoordsFFlower) * 65535 + 0.5);
+        ivec4 lightData1Lower = (lightData0Lower.w >> 8 > 0) ? ivec4(texture2D(colortex9, vxCoordsFFlower) * 65535 + 0.5) : ivec4(0);
+        vec3 occlusionData = getOcclusion(vxPosOld);
+        
+        float intMult = (1 - abs(fract(vxPos.x) - 0.5)) * (1 - abs(fract(vxPos.y) - 0.5)) * (1 - abs(fract(vxPos.z) - 0.5));
+        vec4[3] lights = vec4[3](
+            vec4(lightData0.z % 256, lightData0.z >> 8, lightData0.w % 256, (lightData0.w >> 8) * intMult * occlusionData.x) - vec4(128, 128, 128, 0),
+            vec4(lightData1.x % 256, lightData1.x >> 8, lightData1.y % 256, (lightData1.y >> 8) * intMult * occlusionData.y) - vec4(128, 128, 128, 0),
+            vec4(lightData1.z % 256, lightData1.z >> 8, lightData1.w % 256, (lightData1.w >> 8) * intMult * occlusionData.z) - vec4(128, 128, 128, 0)
+        );
+        vec3 ndotls = (normal == vec3(0)) ? vec3(1) : vec3(
+            max(0, dot(normalize(lights[0].xyz + 0.5 - fract(vxPos)), normal)),
+            max(0, dot(normalize(lights[1].xyz + 0.5 - fract(vxPos)), normal)),
+            max(0, dot(normalize(lights[2].xyz + 0.5 - fract(vxPos)), normal))
+        );
+        ndotls = min(ndotls * 2, 1);
+        //ndotls = vec3(1);
+/*
+        vec4[3] lightslll = isInRange(vxPosOld - vec3(1)) ? vec4[3](
+            vec4(lightData0Lower.z % 256, lightData0Lower.z >> 8, lightData0Lower.w % 256, 0) - vec4(128, 128, 128, 0),
+            vec4(lightData1Lower.x % 256, lightData1Lower.x >> 8, lightData1Lower.y % 256, 0) - vec4(128, 128, 128, 0),
+            vec4(lightData1Lower.z % 256, lightData1Lower.z >> 8, lightData1Lower.w % 256, 0) - vec4(128, 128, 128, 0)
+        ) : lights;
+*/
+        vec3[3] lightCols;
+        for (int k = 0; k < 3; k++) {
+            /*bool present = false;
+            for (int i = 0; i < 3; i++) if (length(lightslll[i] - lights[k]) < 0.5) present = true;
+            if (!present) lights[k].w = 0;*/
+            vxData lightSourceData = readVxMap(getVxCoords(vxPos + lights[k].xyz));
+            lightCols[k] = lightSourceData.lightcol;
+        }
+        vec3 offsetDir = sign(fract(vxPos) - 0.5);
+        vec3 floorPos = floor(vxPosOld);
+        for (int k = 1; k < 8; k++) {
+            vec3 offset = vec3(k%2, (k>>1)%2, (k>>2)%2);
+            vec3 cornerPos = floorPos + offset * offsetDir + 0.5;
+            if (!isInRange(cornerPos)) continue;
+            intMult = (1 - abs(cornerPos.x - vxPosOld.x)) * (1 - abs(cornerPos.y - vxPosOld.y)) * (1 - abs(cornerPos.z - vxPosOld.z));
+            vec2 cornerVxCoordsFF = getVxCoords(cornerPos) * shadowMapResolution / tex8size0;
+            ivec4 cornerLightData0 = ivec4(texture2D(colortex8, cornerVxCoordsFF) * 65535 + 0.5);
+            ivec4 cornerLightData1 = (cornerLightData0.w >> 8 > 0) ? ivec4(texture2D(colortex9, cornerVxCoordsFF) * 65535 + 0.5) : ivec4(0);
+            vec4[3] cornerLights = vec4[3](
+                vec4(cornerLightData0.z % 256, cornerLightData0.z >> 8, cornerLightData0.w % 256, (cornerLightData0.w >> 8)) - vec4(128, 128, 128, 0),
+                vec4(cornerLightData1.x % 256, cornerLightData1.x >> 8, cornerLightData1.y % 256, (cornerLightData1.y >> 8)) - vec4(128, 128, 128, 0),
+                vec4(cornerLightData1.z % 256, cornerLightData1.z >> 8, cornerLightData1.w % 256, (cornerLightData1.w >> 8)) - vec4(128, 128, 128, 0)
+            );
+            for (int j = 0; j < 3 && cornerLights[j].w > 0; j++) {
+                for (int i = 0; i < 3; i++) {
+                    if (length(lights[i].xyz - cornerLights[j].xyz - offset * offsetDir) < 0.5) {
+                        lights[i].w += cornerLights[j].w * occlusionData[i] * intMult;
+                        break;
+                    }
+                }
+            }
+        }
+        for (int k = 0; k < 3; k++) lightCol += lightCols[k] * pow(lights[k].w * BLOCKLIGHT_STRENGTH / 20.0, BLOCKLIGHT_STEEPNESS) * ndotls[k];
+    }
+    return lightCol;
+}
+
+vec3 getBlockLight(vec3 vxPos) {
+    return getBlockLight(vxPos, vec3(0));
+}
+#endif

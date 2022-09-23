@@ -16,24 +16,44 @@ uniform ivec2 atlasSize;
 uniform vec3 cameraPosition;
 uniform vec3 previousCameraPosition;
 
-vec2[8] offsets = vec2[8](
-    vec2(3, -3), vec2(3, 0), vec2(3, 3), vec2(0, 3), vec2(-3, 3), vec2(-3, 0), vec2(-3, -3), vec2(0, -3)
+vec2[9] offsets = vec2[9](
+    vec2(0.3, -0.2), vec2(0.2, 0), vec2(0.2, 0.2), vec2(0, 0.23), vec2(-0.2, 0.4), vec2(-0.8, 0), vec2(-0.9, -0.2), vec2(0, -0.2), vec2(0, 0)
 );
 
 #include "/lib/vx/voxelMapping.glsl"
 
 void main() {
-    bool emissive, alphatest, crossmodel, cuboid, full, entity;
+    bool emissive, alphatest, crossmodel, cuboid, full, entity, notrace;
     vec3 lightcol = vec3(0);
     int lightlevel = 0;
     ivec3[2] bounds = ivec3[2](ivec3(0), ivec3(16));
     #include "/lib/materials/shadowchecks.glsl"
     if (emissive && length(lightcol) < 0.001) {
+        vec4[10] lightcols0;
         vec4 lightcol0 = texture2D(tex, texCoord);
-        for (int i = 0; i < 8 && lightcol0.a < 0.1; i++) {
-            lightcol0 = texture2D(tex, texCoord + offsets[i] / atlasSize);
+        lightcol0.rgb *= lightcol0.a;
+        vec3 avoidcol = vec3(1);
+        float avgbrightness = max(lightcol0.x, max(lightcol0.y, lightcol0.z));
+        lightcol0.rgb += 0.00001;
+        lightcol0.w = avgbrightness - dot(normalize(lightcol0.rgb), avoidcol);
+        lightcols0[9] = lightcol0;
+        float maxbrightness = avgbrightness;
+        for (int i = 0; i < 9; i++) {
+            lightcols0[i] = texture2D(tex, texCoord + offsets[i] * spriteSize / atlasSize);
+            lightcols0[i].xyz *= lightcols0[i].w;
+            lightcols0[i].xyz += 0.00001;
+            float thisbrightness = max(lightcols0[i].x, max(lightcols0[i].y, lightcols0[i].z));
+            avgbrightness += thisbrightness;
+            maxbrightness = max(maxbrightness, thisbrightness);
+            lightcols0[i].w = thisbrightness - dot(normalize(lightcols0[i].rgb), avoidcol);
         }
-        lightcol = lightcol0.rgb;
+        avgbrightness /= 9.0;
+        for (int i = 0; i < 9; i++) {
+            if (max(lightcols0[i].x, max(lightcols0[i].y, lightcols0[i].z)) > (avgbrightness + maxbrightness) * 0.5 && lightcols0[i].w > lightcol0.w) {
+                lightcol0 = lightcols0[i];
+            }
+        }
+        lightcol = lightcol0.rgb / max(max(lightcol0.r, lightcol0.g), lightcol0.b) * maxbrightness;
     }
     if (!emissive) lightcol = vertexCol.rgb;
     ivec4 packedData0 = ivec4(
@@ -43,7 +63,7 @@ void main() {
         mat);
     
     bounds[1] -= 1;
-    int blocktype = (alphatest ? 1 : 0) + (crossmodel ? 2 : 0) + (full ? 4 : 0) + (emissive ? 8 : 0) + (cuboid ? 16 : 0) + (entity ? 32 : 0);
+    int blocktype = (alphatest ? 1 : 0) + (crossmodel ? 2 : 0) + (full ? 4 : 0) + (emissive ? 8 : 0) + (cuboid ? 16 : 0) + (notrace ? 32 : 0);
     int spritelog = 0;
     while (spriteSize >> spritelog + 1 != 0 && spritelog < 15) spritelog++;
 

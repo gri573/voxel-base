@@ -66,6 +66,7 @@ void main() {
             } else aroundData0[k] = ivec4(0);
         }
         dataToWrite0 = aroundData0[0];
+        dataToWrite0.y = int(texture2D(colortex8, getVxCoords(pos) * shadowMapResolution / tex8size).g * 65535 + 0.5);
         dataToWrite1 = aroundData1[0];
         dataToWrite0.x = changed + 256 * mathash;
         if (changed > 0) {
@@ -78,9 +79,16 @@ void main() {
                 ivec2[3] theselights = ivec2[3](aroundData0[k].zw, aroundData1[k].xy, aroundData1[k].zw);
                 for (int i = 0; i < 3; i++) {
                     ivec4 thisLight = ivec4(theselights[i].x % 256, theselights[i].x >> 8, theselights[i].y % 256, theselights[i].y >> 8);
-                    thisLight.xyz -= offsets[k];
+                    thisLight.xyz += offsets[k];
                     thisLight.w -= 1;//16 - (abs(thisLight.x) + abs(thisLight.y) + abs(thisLight.z));
-                    if (thisLight.w > 0) {
+                    bool newLight = true;
+                    vec3 thisNormLight = normalize(thisLight.xyz - 128);
+                    for (int j = 0; j < 3; j++)
+                    if (length(thisLight.xyz - sources[j].xyz) < 0.2 * length(thisLight.xyz - 128)) {
+                        newLight = false;
+                        if (sources[j].w < thisLight.w) sources[j] = thisLight;
+                    }
+                    if (thisLight.w > 0 && newLight) {
                         int j = 3;
                         while (j > 0 && thisLight.w >= sources[j - 1].w) j--;
                         for (int l = 1; l >= j; l--) sources[l + 1] = sources[l];

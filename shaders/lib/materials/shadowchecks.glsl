@@ -2,6 +2,12 @@
 
 //entities
 entity = (mat / 10000 == 5);
+//exclude from ray tracing
+notrace = (
+    entity ||
+    mat == 10072 ||
+    mat == 10076
+);
 //translucent / alpha cutout blocks:
 alphatest = (
     (mat > 9999 && mat < 10021) ||
@@ -46,8 +52,11 @@ emissive = (
     mat == 10632 ||
     mat == 10640 ||
     (mat > 10647 && mat < 10660) ||
-    (mat > 10679 && mat < 10692) ||
+    mat == 10680 ||
+    mat == 10684 ||
+    mat == 10688 ||
     mat == 10708 ||
+    mat == 30020 ||
     mat == 31016 ||
     mat == 60000 ||
     mat == 60012 ||
@@ -63,6 +72,7 @@ emissive = (
 full = (
     mat == 10008 ||
     mat == 10028 ||
+    mat == 10080 ||
     mat == 10116 ||
     mat == 10124 ||
     mat == 10132 ||
@@ -165,10 +175,18 @@ if (emissive) {
         case 10056:
         case 10068:
         case 10072:
+        case 10076:
         case 10396:
         case 10412:
         case 10448:
+        case 10652:
+        case 10656:
             lightlevel = 20;
+            break;
+        case 10496:
+        case 10528:
+        case 10604:
+            lightlevel = 15;
             break;
         default:
             lightlevel = 10;
