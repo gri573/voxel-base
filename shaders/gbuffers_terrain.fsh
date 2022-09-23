@@ -26,7 +26,7 @@ void main() {
     vec2 tex8size = vec2(textureSize(colortex8, 0));
     vec4 color = texture2D(tex, texCoord) * vertexCol;
     //vec3 vxPosOld = getPreviousVxPos(worldPos + 0.1 * normal);
-    vec3 vxPos = getVxPos(worldPos + 0.03 * normal);
+    vec3 vxPos = getVxPos(worldPos + 0.01 * normal);
     /*if (isInRange(vxPosOld) && isInRange(vxPos)) {
         vec2 vxCoordsFF = getVxCoords(vxPosOld) * shadowMapResolution / tex8size;
         ivec4 lightData = ivec4(texture2D(colortex8, vxCoordsFF) * 65535 + 0.5);

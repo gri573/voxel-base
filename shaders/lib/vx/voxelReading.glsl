@@ -61,12 +61,24 @@ vec2 tex8size0 = vec2(textureSize(colortex8, 0));
 
 vec3 getOcclusion(vec3 vxPos) {
     int k = 0;
-    for (; isInRange(2 * vxPos) && k < 4; k++) {
+    for (; isInRange(2 * vxPos, 1) && k < 4; k++) {
         vxPos *= 2;
     }
-    ivec4 lightData = ivec4(texture2D(colortex8, getVxCoords(vxPos) * shadowMapResolution / tex8size0) * 65535 + 0.5);
-    vec3 occlusion;
-    for (int i = 0; i < 3; i++) occlusion[i] = (lightData.y >> 3 * k + i) % 2;
+    vec3 occlusion = vec3(0);
+    vxPos -= 0.5;
+    vec3 floorPos = floor(vxPos);
+    float totalInt = 1;
+    for (int j = 0; j < 8; j++) {
+        vec3 offset = vec3(j%2, (j>>1)%2, (j>>2)%2);
+        vec3 cornerPos = floorPos + offset;
+        float intMult = (1 - abs(vxPos.x - cornerPos.x)) * (1 - abs(vxPos.y - cornerPos.y)) * (1 - abs(vxPos.z - cornerPos.z));
+        if (length(floor(cornerPos / (1 << k)) - floor((vxPos + 0.5) / (1 << k))) > 0.5) {
+            totalInt -= intMult;
+            continue;
+        }
+        ivec4 lightData = ivec4(texture2D(colortex8, getVxCoords(cornerPos + 0.5) * shadowMapResolution / tex8size0) * 65535 + 0.5);        for (int i = 0; i < 3; i++) occlusion[i] += ((lightData.y >> 3 * k + i) % 2) * intMult;
+    }
+    occlusion /= totalInt;
     return occlusion;
 }
 vec3 getBlockLight(vec3 vxPos, vec3 normal) {
@@ -88,13 +100,15 @@ vec3 getBlockLight(vec3 vxPos, vec3 normal) {
             vec4(lightData1.x % 256, lightData1.x >> 8, lightData1.y % 256, (lightData1.y >> 8) * intMult * occlusionData.y) - vec4(128, 128, 128, 0),
             vec4(lightData1.z % 256, lightData1.z >> 8, lightData1.w % 256, (lightData1.w >> 8) * intMult * occlusionData.z) - vec4(128, 128, 128, 0)
         );
-        vec3 ndotls = (normal == vec3(0)) ? vec3(1) : vec3(
-            max(0, dot(normalize(lights[0].xyz + 0.5 - fract(vxPos)), normal)),
-            max(0, dot(normalize(lights[1].xyz + 0.5 - fract(vxPos)), normal)),
-            max(0, dot(normalize(lights[2].xyz + 0.5 - fract(vxPos)), normal))
-        );
-        ndotls = min(ndotls * 2, 1);
-        //ndotls = vec3(1);
+        vec3 ndotls;
+        if (normal == vec3(0)) ndotls = vec3(1);
+        else {
+            for (int k = 0; k < 3; k++) {
+                vec3 lightDir = lights[k].xyz + 0.5 - fract(vxPos);
+                ndotls[k] = max(max(abs(lightDir.x), abs(lightDir.y)), abs(lightDir.z)) < 0.52 ? 1 : max(0, dot(normalize(lightDir), normal));
+            }
+            ndotls = min(ndotls * 2, 1);
+        }
 /*
         vec4[3] lightslll = isInRange(vxPosOld - vec3(1)) ? vec4[3](
             vec4(lightData0Lower.z % 256, lightData0Lower.z >> 8, lightData0Lower.w % 256, 0) - vec4(128, 128, 128, 0),
