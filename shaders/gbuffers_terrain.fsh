@@ -11,6 +11,7 @@ in vec3 normal;
 uniform vec3 cameraPosition;
 uniform vec3 previousCameraPosition;
 uniform sampler2D tex;
+uniform sampler2D colortex0;
 uniform sampler2D colortex8;
 uniform sampler2D colortex9;
 #define TEX89
@@ -23,6 +24,7 @@ uniform ivec2 atlasSize;
 #include "/lib/vx/raytrace.glsl"
 
 void main() {
+    vec3 fogColor = texture2D(colortex0, texCoord).xyz;
     vec2 tex8size = vec2(textureSize(colortex8, 0));
     vec4 color = texture2D(tex, texCoord) * vertexCol;
     //vec3 vxPosOld = getPreviousVxPos(worldPos + 0.1 * normal);
@@ -38,7 +40,7 @@ void main() {
             color.rgb *= lightBlockData.lightcol * ((lightData.w >> 8) / 16.0 + 0.1) * vec3(visible, 1, 1);//lightPos * 0.1 + 0.5;
         }
     }*/
-    vec3 lightCol = getBlockLight(vxPos, normal) + lmCoord.y * vec3(0.7, 0.8, 1.0);
+    vec3 lightCol = getBlockLight(vxPos, normal) + (lmCoord.y + 0.2) * fogColor;
     color.rgb *= lightCol;
     /*RENDERTARGETS:0*/
     gl_FragData[0] = color;

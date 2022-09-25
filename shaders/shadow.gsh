@@ -46,6 +46,9 @@ void main() {
             vec3 tempPos = fract(avgPos - 0.5);
             if (max(tempPos.x, max(tempPos.y, tempPos.z)) > 0.49) tracemat = false;
             break;
+        case 10496:
+            avgPos += vec3(0.0, 0.1, 0.0);// + 0.5 * cnormal;
+            break;
         case 50016:
             tracemat = false;
             break;

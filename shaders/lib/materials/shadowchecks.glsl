@@ -189,6 +189,7 @@ if (emissive) {
         case 10396:
         case 10412:
         case 10448:
+        case 10640:
         case 10652:
         case 10656:
             lightlevel = 20;
@@ -196,6 +197,7 @@ if (emissive) {
         case 10496:
         case 10528:
         case 10604:
+        case 30020:
             lightlevel = 15;
             break;
         default:

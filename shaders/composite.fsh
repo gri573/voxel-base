@@ -84,7 +84,7 @@ void main() {
                     bool newLight = true;
                     vec3 thisNormLight = normalize(thisLight.xyz - 128);
                     for (int j = 0; j < 3; j++)
-                    if (length(thisLight.xyz - sources[j].xyz) < 0.2 * length(thisLight.xyz - 128)) {
+                    if (length(thisLight.xyz - sources[j].xyz) < 0.2 * length(thisLight.xyz - 128) + 0.01) {
                         newLight = false;
                         if (sources[j].w < thisLight.w) sources[j] = thisLight;
                     }
