@@ -8,27 +8,26 @@ in vec3 worldPos;
 in vec4 vertexCol;
 in vec3 normal;
 
+uniform int worldTime;
+uniform vec3 fogColor;
 uniform vec3 cameraPosition;
 uniform vec3 previousCameraPosition;
 uniform sampler2D tex;
-uniform sampler2D colortex0;
 uniform sampler2D colortex8;
 uniform sampler2D colortex9;
-#define TEX89
+uniform sampler2D colortex10;
 uniform sampler2D shadowcolor0;
 uniform sampler2D shadowcolor1;
 uniform ivec2 atlasSize;
 
-#include "/lib/vx/voxelMapping.glsl"
-#include "/lib/vx/voxelReading.glsl"
-#include "/lib/vx/raytrace.glsl"
+#include "/lib/vx/getLighting.glsl"
 
 void main() {
-    vec3 fogColor = texture2D(colortex0, texCoord).xyz;
     vec2 tex8size = vec2(textureSize(colortex8, 0));
     vec4 color = texture2D(tex, texCoord) * vertexCol;
     //vec3 vxPosOld = getPreviousVxPos(worldPos + 0.1 * normal);
     vec3 vxPos = getVxPos(worldPos + 0.01 * normal);
+    vec3 vxPosOld = vxPos + floor(cameraPosition) - floor(previousCameraPosition);
     /*if (isInRange(vxPosOld) && isInRange(vxPos)) {
         vec2 vxCoordsFF = getVxCoords(vxPosOld) * shadowMapResolution / tex8size;
         ivec4 lightData = ivec4(texture2D(colortex8, vxCoordsFF) * 65535 + 0.5);
@@ -40,7 +39,7 @@ void main() {
             color.rgb *= lightBlockData.lightcol * ((lightData.w >> 8) / 16.0 + 0.1) * vec3(visible, 1, 1);//lightPos * 0.1 + 0.5;
         }
     }*/
-    vec3 lightCol = getBlockLight(vxPos, normal) + (lmCoord.y + 0.2) * fogColor;
+    vec3 lightCol = getBlockLight(vxPos, normal) + 0.6 * (lmCoord.y + 0.2) * fogColor + 0.7 * getSunLight(vxPosOld, normal);
     color.rgb *= lightCol;
     /*RENDERTARGETS:0*/
     gl_FragData[0] = color;

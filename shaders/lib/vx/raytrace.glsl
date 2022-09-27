@@ -1,9 +1,7 @@
-#ifndef MAPPING
+#ifndef RAYTRACE
+#define RAYTRACE
 #include "/lib/vx/voxelMapping.glsl"
-#endif
-#ifndef READING
 #include "/lib/vx/voxelReading.glsl"
-#endif
 
 mat3 eye = mat3(
     1, 0, 0,
@@ -39,19 +37,23 @@ vec4 handledata(vxData data, sampler2D atlas, vec3 pos, vec3 dir, int n) {
         }
         vec2 spritecoord = vec2(n != 0 ? fract(pos.x) : fract(pos.z), n != 1 ? fract(-pos.y) : fract(pos.z)) * 2 - 1;
         vec2 texcoord = data.texcoord + data.spritesize * spritecoord / atlasSize;
-        vec4 color = data.alphatest ? texture2D(atlas, texcoord) : vec4(0, 0, 0, 1);
+        vec4 color = texture2D(atlas, texcoord);
+        if (!data.alphatest) color.a = 1;
         color.rgb *= data.emissive ? vec3(1) : data.lightcol;
         return color;
     }
-    pos = fract(pos + 0.01 * dir) - 0.01 * dir;
+    vec3 offset = 0.01 * eye[n] * sign(dir[n]);
+    pos = fract(pos + offset) - offset;
     float w0 = (1 - pos.x - pos.z) / (dir.x + dir.z);
     float w1 = (pos.x - pos.z) / (dir.z - dir.x);
     vec3 p0 = pos + w0 * dir;
     vec3 p1 = pos + w1 * dir;
     bool valid0 = (max(max(abs(p0.x - 0.5), abs(p0.y - 0.5)), abs(p0.z - 0.5)) < 0.48);
     bool valid1 = (max(max(abs(p1.x - 0.5), abs(p1.y - 0.5)), abs(p1.z - 0.5)) < 0.48);
-    vec4 color0 = valid0 ? texture2D(atlas, data.texcoord + data.spritesize * (p0.xy * 2 - 1) / atlasSize) : vec4(0);
-    vec4 color1 = valid1 ? texture2D(atlas, data.texcoord + data.spritesize * (p1.xy * 2 - 1) / atlasSize) : vec4(0);
+    vec4 color0 = valid0 ? texture2D(atlas, data.texcoord + data.spritesize * (1 - p0.xy * 2) / atlasSize) : vec4(0);
+    vec4 color1 = valid1 ? texture2D(atlas, data.texcoord + data.spritesize * (1 - p1.xy * 2) / atlasSize) : vec4(0);
+    color0.xyz *= data.emissive ? vec3(1) : data.lightcol;
+    color1.xyz *= data.emissive ? vec3(1) : data.lightcol;
     return (w0 < w1) ? (vec4(color0.xyz * color0.a, color0.a) + (1 - color0.a) * vec4(color1.xyz * color1.a, color1.a)) : (vec4(color1.xyz * color1.a, color1.a) + (1 - color1.a) * vec4(color0.xyz * color0.a, color0.a));
 }
 
@@ -68,11 +70,11 @@ vec4 raytrace(inout vec3 pos0, vec3 dir, sampler2D atlas, bool translucentData) 
             w = progress[i];
         }
     }
-    vec3 stp = abs(1/dir);
+    vec3 stp = abs(1 / dir);
     vec3 pos = pos0;
     vec4 raycolor = vec4(0);
     vec4 oldRayColor = vec4(0);
-    vxData voxeldata = readVxMap(getVxCoords(pos));
+    vxData voxeldata = readVxMap(getVxPixelCoords(pos));
     if (voxeldata.trace) {
         raycolor = handledata(voxeldata, atlas, pos, dir, i);
         raycolor.rgb *= raycolor.a;
@@ -81,11 +83,13 @@ vec4 raytrace(inout vec3 pos0, vec3 dir, sampler2D atlas, bool translucentData) 
     while (w < 1 && k < 2000 && raycolor.a < 0.95) {
         oldRayColor = raycolor;
         pos = pos0 + w * dir + 0.1 * eye[i] * sign(dir[i]);
-        voxeldata = readVxMap(getVxCoords(pos));
-        if (voxeldata.trace) {
-            vec4 newcolor = handledata(voxeldata, atlas, pos0 + w * dir, dir, i);
-            raycolor.rgb += (1 - raycolor.a) * newcolor.a * newcolor.rgb;
-            raycolor.a += (1 - raycolor.a) * newcolor.a;
+        if (isInRange(pos)) {
+            voxeldata = readVxMap(getVxPixelCoords(pos));
+            if (voxeldata.trace) {
+                vec4 newcolor = handledata(voxeldata, atlas, pos0 + w * dir, dir, i);
+                raycolor.rgb += (1 - raycolor.a) * newcolor.a * newcolor.rgb;
+                raycolor.a += (1 - raycolor.a) * newcolor.a;
+            }
         }
         k += 1;
         progress[i] += stp[i];
@@ -105,3 +109,4 @@ vec4 raytrace(inout vec3 pos0, vec3 dir, sampler2D atlas, bool translucentData) 
 vec4 raytrace(inout vec3 pos0, vec3 dir, sampler2D atlas) {
     return raytrace(pos0, dir, atlas, false);
 }
+#endif

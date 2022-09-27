@@ -33,18 +33,18 @@ flood fill data:
 void main() {
     vec2 debugData = vec2(0);
     vec2 tex8size = vec2(textureSize(colortex8, 0));
-    vec2 shadowCoord = texCoord * tex8size / shadowMapResolution;
+    ivec2 shadowCoord = ivec2(texCoord * tex8size);
     ivec4 dataToWrite0;
     ivec4 dataToWrite1;
-    if (max(shadowCoord.x, shadowCoord.y) < 1) {
-        vec3 pos = getVxPos(shadowCoord);
+    if (max(shadowCoord.x, shadowCoord.y) < shadowMapResolution) {
         vxData blockData = readVxMap(shadowCoord);
+        vec3 pos = getVxPos(shadowCoord);
         vec3 oldPos = pos + floor(cameraPosition) - floor(previousCameraPosition);
         ivec4[7] aroundData0;
         ivec4[7] aroundData1;
-        vec2 oldCoords = getVxCoords(oldPos) * shadowMapResolution / tex8size;
-        aroundData0[0] = ivec4(texture2D(colortex8, oldCoords) * 65535 + 0.5);
-        aroundData1[0] = (aroundData0[0].w >> 8 > 0) ? ivec4(texture2D(colortex9, oldCoords) * 65535 + 0.5) : ivec4(0);
+        ivec2 oldCoords = getVxPixelCoords(oldPos);
+        aroundData0[0] = ivec4(texelFetch(colortex8, oldCoords, 0) * 65535 + 0.5);
+        aroundData1[0] = ivec4(texelFetch(colortex9, oldCoords, 0) * 65535 + 0.5);
         int changed = isInRange(oldPos) ? 0 : 1;
         int prevchanged = aroundData0[0].x % 256;
         int newhash =  blockData.mat / 4 % 256;
@@ -56,9 +56,9 @@ void main() {
         for (int k = 1; k < 7; k++) {
             vec3 aroundPos = oldPos + offsets[k];
             if (isInRange(aroundPos)) {
-                vec2 aroundCoords = getVxCoords(aroundPos) * shadowMapResolution / tex8size;
-                aroundData0[k] = ivec4(texture2D(colortex8, aroundCoords) * 65535 + 0.5);
-                aroundData1[k] = ivec4(texture2D(colortex9, aroundCoords) * 65535 + 0.5);
+                ivec2 aroundCoords = getVxPixelCoords(aroundPos);
+                aroundData0[k] = ivec4(texelFetch(colortex8, aroundCoords, 0) * 65535 + 0.5);
+                aroundData1[k] = ivec4(texelFetch(colortex9, aroundCoords, 0) * 65535 + 0.5);
                 int aroundChanged = aroundData0[k].x % 256;
                 if (aroundChanged > changed + 1) {
                     changed = aroundChanged - 1;
@@ -66,7 +66,7 @@ void main() {
             } else aroundData0[k] = ivec4(0);
         }
         dataToWrite0 = aroundData0[0];
-        dataToWrite0.y = int(texture2D(colortex8, getVxCoords(pos) * shadowMapResolution / tex8size).g * 65535 + 0.5);
+        dataToWrite0.y = int(texelFetch(colortex8, getVxPixelCoords(pos), 0).y * 65535 + 0.5);
         dataToWrite1 = aroundData1[0];
         dataToWrite0.x = changed + 256 * mathash;
         if (changed > 0) {

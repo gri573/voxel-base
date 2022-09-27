@@ -17,11 +17,9 @@ void main() {
     vec2 shadowcoord = texcoord * viewSize / shadowMapResolution/2;
     if (shadowcoord.x < 1 && shadowcoord.y < 1) {
         ivec4 lightData = ivec4(texture2D(colortex8, t8coord) * 65535 + 0.5);
-        color = vec3(lightData.z % 256, lightData.z / 256, lightData.w % 256);
-        color -= 128;
-        color = (normalize(color) * (lightData.w >> 8) / 32.0 * (lightData.y % 2) + 0.5) * (1 - 16 * fract(lightData.x / 256.0));
-    } else color = vec3(0.5);
-    if (length(color - vec3(0.5)) < 0.001) {
+        color = vec3(lightData.y % 2, (lightData.y >> 6) % 2, (lightData.y >> 12) % 2);
+    } else color = vec3(0);
+    if (length(color - vec3(0)) < 0.001) {
         color = texture2D(colortex0, texcoord).xyz;
     }*/
     /*RENDERTARGETS: 0*/

@@ -149,12 +149,13 @@ crossmodel = (
     mat == 10016 ||
     mat == 10072 ||
     mat == 10076 ||
-    mat == 10060 ||
     mat == 10332 ||
     mat == 10492
 );
 cuboid = (
     mat == 10056 ||
+    mat == 10060 ||
+    mat == 10068 ||
     mat == 10496 ||
     mat == 10528 ||
     mat == 10604 ||
@@ -164,6 +165,10 @@ cuboid = (
 );
 if (cuboid) {
     switch (mat) {
+        case 10060:
+            bounds[0] = ivec3(7, 0, 7);
+            bounds[1] = ivec3(9, 16, 9);
+            break;
         case 10068:
         case 31000:
             bounds[1].y = int(16*fract(pos.y - 1.0/32.0));
