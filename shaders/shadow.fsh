@@ -27,7 +27,7 @@ void main() {
     vec3 lightcol = vec3(0); // lightcol contains either light color or gl_Color.rgb
     int lightlevel = 0;
     ivec3[2] bounds = ivec3[2](ivec3(0), ivec3(16));
-    #include "/lib/materials/shadowchecks.glsl"
+    #include "/lib/materials/shadowchecks_fsh.glsl"
     // check for a relatively saturated colour among the brighter parts of the texture, then use that as emission colour
     if (emissive && length(lightcol) < 0.001) {
         vec4[10] lightcols0;
