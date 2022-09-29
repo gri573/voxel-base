@@ -17,12 +17,14 @@ struct vxData {
     bool crossmodel;
 };
 
+//read data from the voxel map (excluding flood fill data)
+
 vxData readVxMap(ivec2 coords) {
     ivec4 data0 = ivec4(texelFetch(shadowcolor0, coords, 0) * 65535 + 0.5);
     ivec4 data1 = ivec4(texelFetch(shadowcolor1, coords, 0) * 65535 + 0.5);
     vxData data;
-    if (data0.w == 65535) {
-        data.lightcol = vec3(0);
+    if (data0.w == 65535) { // if the voxel was not written to, then it has shadowClearColor, which is vec4(1.0)
+        data.lightcol = vec3(0); // lightcol is gl_color for anything that isn't a light source
         data.texcoord = vec2(-1);
         data.mat = -1;
         data.lower = vec3(0);
@@ -53,9 +55,4 @@ vxData readVxMap(ivec2 coords) {
     }
     return data;
 }
-/*
-vxData readVxMap(vec2 coords) {
-    return readVxMap(ivec2(coords * shadowMapResolution));
-}
-*/
 #endif

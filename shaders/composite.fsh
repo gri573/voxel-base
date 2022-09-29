@@ -1,3 +1,5 @@
+// propagate blocklight data
+
 #version 330 compatibility
 
 #include "/lib/common.glsl"
@@ -33,26 +35,30 @@ flood fill data:
 void main() {
     vec2 debugData = vec2(0);
     vec2 tex8size = vec2(textureSize(colortex8, 0));
-    ivec2 shadowCoord = ivec2(texCoord * tex8size);
+    ivec2 pixelCoord = ivec2(texCoord * tex8size);
     ivec4 dataToWrite0;
     ivec4 dataToWrite1;
-    if (max(shadowCoord.x, shadowCoord.y) < shadowMapResolution) {
-        vxData blockData = readVxMap(shadowCoord);
-        vec3 pos = getVxPos(shadowCoord);
+    if (max(pixelCoord.x, pixelCoord.y) < shadowMapResolution) {
+        vxData blockData = readVxMap(pixelCoord);
+        vec3 pos = getVxPos(pixelCoord);
         vec3 oldPos = pos + floor(cameraPosition) - floor(previousCameraPosition);
         ivec4[7] aroundData0;
         ivec4[7] aroundData1;
         ivec2 oldCoords = getVxPixelCoords(oldPos);
         aroundData0[0] = ivec4(texelFetch(colortex8, oldCoords, 0) * 65535 + 0.5);
         aroundData1[0] = ivec4(texelFetch(colortex9, oldCoords, 0) * 65535 + 0.5);
-        int changed = isInRange(oldPos) ? 0 : 1;
+        int changed = isInRange(oldPos) ? 0 : 1; // need to update if voxel is new
         int prevchanged = aroundData0[0].x % 256;
+        // newhash and mathash are hashes of the material ID, which change if the block at the given location changes, so it can be detected
         int newhash =  blockData.mat / 4 % 256;
-        int mathash = isInRange(oldPos) ? aroundData0[0].x >> 8 : (blockData.emissive ? 0 : newhash);
+        int mathash = isInRange(oldPos) ? aroundData0[0].x >> 8 : newhash;
+        // if the material changed, then propagate that
         if (mathash != newhash) {
+            // the change will not have any effects if it occurs further away than the light level at its location, because any light that passes through that location has faded out by then
             changed = blockData.emissive ? blockData.lightlevel : aroundData0[0].w >> 8;
             mathash = newhash;
         }
+        //check for changes in surrounding voxels and propagate them
         for (int k = 1; k < 7; k++) {
             vec3 aroundPos = oldPos + offsets[k];
             if (isInRange(aroundPos)) {
@@ -60,35 +66,41 @@ void main() {
                 aroundData0[k] = ivec4(texelFetch(colortex8, aroundCoords, 0) * 65535 + 0.5);
                 aroundData1[k] = ivec4(texelFetch(colortex9, aroundCoords, 0) * 65535 + 0.5);
                 int aroundChanged = aroundData0[k].x % 256;
-                if (aroundChanged > changed + 1) {
-                    changed = aroundChanged - 1;
-                }
+                changed = max(aroundChanged - 1, changed);
             } else aroundData0[k] = ivec4(0);
         }
-        dataToWrite0 = aroundData0[0];
+        // copy data so it is written back to the buffer if unchanged
+        dataToWrite0.xzw = aroundData0[0].xzw;
         dataToWrite0.y = int(texelFetch(colortex8, getVxPixelCoords(pos), 0).y * 65535 + 0.5);
         dataToWrite1 = aroundData1[0];
         dataToWrite0.x = changed + 256 * mathash;
         if (changed > 0) {
+            // sources will contain nearby light sources, sorted by intensity
             ivec4 sources[3] = ivec4[3](ivec4(0), ivec4(0), ivec4(0));
             if (blockData.emissive) {
                 sources[0] = ivec4(128, 128, 128, blockData.lightlevel);
                 dataToWrite0.y = 60000;
             }
             for (int k = 1; k < 7; k++) {
+                // current surrounding (sorted but still compressed) light data
                 ivec2[3] theselights = ivec2[3](aroundData0[k].zw, aroundData1[k].xy, aroundData1[k].zw);
                 for (int i = 0; i < 3; i++) {
+                    //unpack and adjust light data
                     ivec4 thisLight = ivec4(theselights[i].x % 256, theselights[i].x >> 8, theselights[i].y % 256, theselights[i].y >> 8);
                     thisLight.xyz += offsets[k];
-                    thisLight.w -= 1;//16 - (abs(thisLight.x) + abs(thisLight.y) + abs(thisLight.z));
+                    thisLight.w -= 1;
+                    if (thisLight.w <= 0) continue; // ignore light sources with zero intensity
                     bool newLight = true;
-                    vec3 thisNormLight = normalize(thisLight.xyz - 128);
-                    for (int j = 0; j < 3; j++)
-                    if (length(thisLight.xyz - sources[j].xyz) < 0.2 * length(thisLight.xyz - 128) + 0.01) {
-                        newLight = false;
-                        if (sources[j].w < thisLight.w) sources[j] = thisLight;
+                    for (int j = 0; j < 3; j++) {
+                    // if there is a nearby light already registered, assume they are the same (nearness suffices in order to retain more diverse information)
+                        if (length(thisLight.xyz - sources[j].xyz) < 0.2 * length(thisLight.xyz - 128) + 0.01) {
+                            newLight = false;
+                            if (sources[j].w < thisLight.w) sources[j] = thisLight;
+                            break;
+                        }
                     }
-                    if (thisLight.w > 0 && newLight) {
+                    if (newLight) {
+                        // sort by intensity, to keep the brightest light sources
                         int j = 3;
                         while (j > 0 && thisLight.w >= sources[j - 1].w) j--;
                         for (int l = 1; l >= j; l--) sources[l + 1] = sources[l];
@@ -96,6 +108,7 @@ void main() {
                     }
                 }
             }
+            // write new light data
             dataToWrite0.zw = ivec2(
                 sources[0].x + (sources[0].y << 8),
                 sources[0].z + (sources[0].w << 8));

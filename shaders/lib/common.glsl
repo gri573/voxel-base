@@ -7,6 +7,8 @@ const int shadowMapResolution = 1024; //[64 128 256 512 1024 2048 4096]
 // voxel volume height
 #define VXHEIGHT 8 //[4 5 6 7 8 9 10 11 12 13 14 15 16]
 
+#define OCCLUSION_CASCADE_COUNT 5 //[1 2 3 4 5]
+
 #define BLOCKLIGHT_STRENGTH 1.0 //[0.5 0.6 0.7 0.8 0.9 1.0 1.1 1.2 1.3 1.5 1.7 2.0]
 
 #define BLOCKLIGHT_STEEPNESS 2.0 //[1.0 1.3 1.5 1.7 2.0]

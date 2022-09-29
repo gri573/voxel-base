@@ -24,15 +24,16 @@ vec2[9] offsets = vec2[9](
 
 void main() {
     bool emissive, alphatest, crossmodel, cuboid, full, entity, notrace;
-    vec3 lightcol = vec3(0);
+    vec3 lightcol = vec3(0); // lightcol contains either light color or gl_Color.rgb
     int lightlevel = 0;
     ivec3[2] bounds = ivec3[2](ivec3(0), ivec3(16));
     #include "/lib/materials/shadowchecks.glsl"
+    // check for a relatively saturated colour among the brighter parts of the texture, then use that as emission colour
     if (emissive && length(lightcol) < 0.001) {
         vec4[10] lightcols0;
         vec4 lightcol0 = texture2D(tex, texCoord);
         lightcol0.rgb *= lightcol0.a;
-        vec3 avoidcol = vec3(1);
+        const vec3 avoidcol = vec3(1); // pure white is unsaturated and should be avoided
         float avgbrightness = max(lightcol0.x, max(lightcol0.y, lightcol0.z));
         lightcol0.rgb += 0.00001;
         lightcol0.w = avgbrightness - dot(normalize(lightcol0.rgb), avoidcol);
@@ -47,8 +48,8 @@ void main() {
             maxbrightness = max(maxbrightness, thisbrightness);
             lightcols0[i].w = thisbrightness - dot(normalize(lightcols0[i].rgb), avoidcol);
         }
-        avgbrightness /= 9.0;
-        for (int i = 0; i < 9; i++) {
+        avgbrightness /= 10.0;
+        for (int i = 0; i < 10; i++) {
             if (max(lightcols0[i].x, max(lightcols0[i].y, lightcols0[i].z)) > (avgbrightness + maxbrightness) * 0.5 && lightcols0[i].w > lightcol0.w) {
                 lightcol0 = lightcols0[i];
             }
@@ -60,7 +61,7 @@ void main() {
         int(lightcol.r * 255) + int(lightcol.g * 255) * 256,
         int(lightcol.b * 255) + (int(texCoord.x * 4095) / 16) * 256,
         int(texCoord.x * 4095) % 16 + int(texCoord.y * 4095) * 16,
-        mat);
+        mat); // material index
     
     bounds[1] -= 1;
     int blocktype = (alphatest ? 1 : 0) + (crossmodel ? 2 : 0) + (full ? 4 : 0) + (emissive ? 8 : 0) + (cuboid ? 16 : 0) + (notrace ? 32 : 0);
