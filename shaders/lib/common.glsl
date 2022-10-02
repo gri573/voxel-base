@@ -21,6 +21,8 @@ const int shadowMapResolution = 1024; //[64 128 256 512 1024 2048 4096]
 
 #define SUN_CHECK_INTERVAL 20 //[5 7 10 15 20 30]
 
+#define EMISSIVE_ORES
+
 const float shadowDistance = 30; //[20 30 40 50 60 70 80 90 100 110 120]
 const float shadowDistanceRenderMul = 1.0;
 

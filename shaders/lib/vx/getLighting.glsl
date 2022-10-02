@@ -5,14 +5,15 @@
 #define LIGHTING
 vec2 tex8size0 = vec2(textureSize(colortex8, 0));
 
-vec3 getOcclusion(vec3 vxPos) {
+vec3 getOcclusion(vec3 vxPos, vec3 normal) {
     int k = 0;
+    normal *= 2.0 * max(max(abs(vxPos.x) / vxRange, abs(vxPos.y) / (VXHEIGHT * VXHEIGHT)), abs(vxPos.z) / vxRange);
     // zoom in to the highest-resolution available sub map
     for (; isInRange(2 * vxPos, 1) && k < OCCLUSION_CASCADE_COUNT - 1; k++) {
         vxPos *= 2;
     }
     vec3 occlusion = vec3(0);
-    vxPos -= 0.5;
+    vxPos += normal - 0.5;
     vec3 floorPos = floor(vxPos);
     float totalInt = 1; // total intensity (calculating weighted average of surrounding occlusion data)
     for (int j = 0; j < 8; j++) {
@@ -62,7 +63,7 @@ vec3 getBlockLight(vec3 vxPos, vec3 normal) {
         ivec3 lightMats;
         for (int k = 0; k < 3; k++) {
             vxData lightSourceData = readVxMap(getVxPixelCoords(vxPos + lights[k].xyz));
-            lightCols[k] = lightSourceData.lightcol;
+            lightCols[k] = lightSourceData.lightcol * (lightSourceData.emissive ? 1.0 : 0.0);
             lightMats[k] = lightSourceData.mat;
         }
         vec3 offsetDir = sign(fract(vxPos) - 0.5);
@@ -91,7 +92,7 @@ vec3 getBlockLight(vec3 vxPos, vec3 normal) {
                 }
             }
         }
-        vec3 occlusionData = getOcclusion(vxPosOld);
+        vec3 occlusionData = getOcclusion(vxPosOld, normal);
         for (int k = 0; k < 3; k++) lightCol += lightCols[k] * occlusionData[k] * pow(lights[k].w * BLOCKLIGHT_STRENGTH / 20.0, BLOCKLIGHT_STEEPNESS) * ndotls[k];
         return lightCol;
     } else return vec3(lmCoord.x);

@@ -20,9 +20,10 @@ float aabbIntersect(vxData data, vec3 pos, vec3 dir, inout int n) {
         if (dir[i] == 0) continue;
         float relevantBound = bounds[dir[i] < 0 ? 1 : 0][i];
         float w0 = (relevantBound - pos[i]) / dir[i];
+        if (w0 < 0.0) relevantBound = bounds[dir[i] < 0 ? 1 : 0][i];
         vec3 newPos = pos + w0 * dir;
         // ray-plane intersection position needs to be closer than the previous best one and further than approximately 0
-        bool valid = (w0 > -0.01 / length(dir) && w0 < w);
+        bool valid = (w0 > -0.05 / length(dir) && w0 < w);
         for (int j = 1; j < 3; j++) {
             int ij = (i + j) % 3;
             // intersection position also needs to be within other bounds
