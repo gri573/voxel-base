@@ -104,7 +104,7 @@ vec4 raytrace(inout vec3 pos0, vec3 dir, sampler2D atlas, bool translucentData) 
     // main loop
     while (w < 1 && k < 2000 && raycolor.a < 0.95) {
         oldRayColor = raycolor;
-        pos = pos0 + w * dir + 0.01 * eye[i] * sign(dir[i]);
+        pos = pos0 + (w + 0.001 / length(dir)) * dir + 0.001 * eye[i] * sign(dir[i]);
         // read voxel data at new position and update ray colour accordingly
         if (isInRange(pos)) {
             voxeldata = readVxMap(getVxPixelCoords(pos));
