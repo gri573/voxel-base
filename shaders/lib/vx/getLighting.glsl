@@ -22,7 +22,7 @@ vec3 getOcclusion(vec3 vxPos, vec3 normal) {
         // intensity multiplier for linear interpolation
         float intMult = (1 - abs(vxPos.x - cornerPos.x)) * (1 - abs(vxPos.y - cornerPos.y)) * (1 - abs(vxPos.z - cornerPos.z));
         // skip this corner if it is across a block boundary, to disregard dark spots on the insides of surfaces
-        if (length(floor(cornerPos / (1 << k)) - floor((vxPos + 0.5) / (1 << k))) > 0.5) {
+        if (length(floor(cornerPos / float(1 << k)) - floor((vxPos + 0.5) / float(1 << k))) > 0.5) {
             totalInt -= intMult;
             continue;
         }
@@ -85,7 +85,7 @@ vec3 getBlockLight(vec3 vxPos, vec3 normal) {
                 int cornerLightMat = readVxMap(getVxPixelCoords(cornerLights[j].xyz + vxPos)).mat;
                 for (int i = 0; i < 3; i++) {
                     int i0 = (i + j) % 3;
-                    if (length(lights[i0].xyz - cornerLights[j].xyz - offset * offsetDir) < (cornerLightMat == lightMats[i0] ? 1.5 : 0.5)) {
+                    if (length(vec3(lights[i0].xyz - cornerLights[j].xyz - offset * offsetDir)) < (cornerLightMat == lightMats[i0] ? 1.5 : 0.5)) {
                         lights[i0].w += cornerLights[j].w * intMult * (isHere[i0] ? 0 : 1);
                         break;
                     }
@@ -118,7 +118,7 @@ float getSunOcclusion(vec3 vxPos) {
         // this corner's intensity multiplier
         float intMult = (1 - abs(vxPos.x - cornerPos.x)) * (1 - abs(vxPos.y - cornerPos.y)) * (1 - abs(vxPos.z - cornerPos.z));
         // skip this corner if it is across a block boundary, to disregard dark spots on the insides of surfaces
-        if (length(floor(cornerPos / (1 << k)) - floor((vxPos + 0.5) / (1 << k))) > 0.5) {
+        if (length(floor(cornerPos / float(1 << k)) - floor((vxPos + 0.5) / float(1 << k))) > 0.5) {
             totalInt -= intMult;
             continue;
         }

@@ -93,7 +93,7 @@ void main() {
                     bool newLight = true;
                     for (int j = 0; j < 3; j++) {
                     // if there is a nearby light already registered, assume they are the same (nearness suffices in order to retain more diverse information)
-                        if (length(thisLight.xyz - sources[j].xyz) < 0.2 * length(thisLight.xyz - 128) + 0.01) {
+                        if (length(vec3(thisLight.xyz - sources[j].xyz)) < 0.2 * length(vec3(thisLight.xyz - 128)) + 0.01) {
                             newLight = false;
                             if (sources[j].w < thisLight.w) sources[j] = thisLight;
                             break;
