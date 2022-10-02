@@ -39,7 +39,7 @@ vec3 getVxPos(ivec2 vxCoords) {
     //vec2 vxCoords = vxCoords0;
     vec3 pos;
     pos.xz = mod(vxCoords, vec2(vxRange)) - vxRange / 2 + 0.5;
-    pos.y = floor(vxCoords.y / vxRange) * VXHEIGHT + floor(vxCoords.x / vxRange) - VXHEIGHT * VXHEIGHT / 2 + 0.5;
+    pos.y = floor(float(vxCoords.y) / vxRange) * VXHEIGHT + floor(float(vxCoords.x) / vxRange) - VXHEIGHT * VXHEIGHT / 2 + 0.5;
     return pos;
 }
 
