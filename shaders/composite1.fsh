@@ -23,6 +23,7 @@ ivec2 atlasSize = textureSize(colortex15, 0);
 vec2 tex8size = vec2(textureSize(colortex8, 0));
 
 ivec3[7] offsets = ivec3[7](ivec3(0), ivec3(-1, 0, 0), ivec3(0, -1, 0), ivec3(0, 0, -1), ivec3(1, 0, 0), ivec3(0, 1, 0), ivec3(0, 0, 1));
+vec3[6] randomOffsets = vec3[6](vec3(0.64, -0.05, 0.46), vec3(0.39, -0.93, 0.92), vec3(-0.52, -0.42, -0.06), vec3(0.28, 0.11, 0.51), vec3(0.87, 0.6, 0.3), vec3(-0.15, 0.04, -0.97));
 
 #include "/lib/vx/voxelMapping.glsl"
 #include "/lib/vx/voxelReading.glsl"
@@ -76,15 +77,21 @@ void main() {
             //sun stuff
             #ifdef SUN_SHADOWS
             bool sunDone = (k == 0);
-            if ((doSunLight || !isInRange(oldPos0)) && k > 0) {
-                ivec4 sunColData = ivec4(texelFetch(colortex10, getVxPixelCoords(pos + offset), 0) * 65535 + 0.5);
-                // the update condition stops working at the last iteration for whatever reason
-                if (k == OCCLUSION_CASCADE_COUNT - 1 || (sunColData.x % 4 > 0 && (sunColData.x >> 2) % 4 > 0) || !isInRange(oldPos0)) {
-                    sunDone = true;
-                    vec3 pos1 = pos;
-                    vec4 sunOcclusion = raytrace(pos1, sunDir * sign(sunDir.y) * vxRange, colortex15);
-                    sunLightData += (sunOcclusion.w > 0.5 ? 0 : 1) << (k + 3);
-                }
+            if (k > 0) {
+                if (doSunLight || !isInRange(oldPos0)) {
+                    ivec4 sunColData = ivec4(texelFetch(colortex10, getVxPixelCoords(pos + offset), 0) * 65535 + 0.5);
+                    // the update condition stops working at the last iteration for whatever reason
+                    if (k == OCCLUSION_CASCADE_COUNT - 1 || (sunColData.x % 4 > 0 && (sunColData.x >> 2) % 4 > 0) || !isInRange(oldPos0)) {
+                        sunDone = true;
+                        vec3 pos1 = pos;
+                        vec4 sunOcclusion = raytrace(pos1, sunDir * sign(sunDir.y) * vxRange + 0.01 * randomOffsets[frameCounter % 6], colortex15);
+                        sunLightData += (sunOcclusion.w > 0.5 ? 0 : 1) << (k + 3);
+                    }
+                }/* else if (!isInRange(oldPos0)) {
+                    int sunOcclusion = int(texelFetch(colortex10, getVxPixelCoords(oldPos0 * 0.5), 0).x * 65535 + 0.5);
+                    sunOcclusion = (sunOcclusion >> (k + 2)) % 2;
+                    sunLightData += sunOcclusion << (k + 3);
+                }*/
             }
             if (!sunDone) {
                 sunLightData += ((int(texelFetch(colortex10, getVxPixelCoords(oldPos0), 0).x * 65535 + 0.5) >> (3 + k)) % 2) << (3 + k);
@@ -110,7 +117,7 @@ void main() {
                         vec3 lightDir = lights[i] - 127.5 - fract(pos);
                         vec3 endPos = pos;
                         vec3 goalPos = pos + lightDir;
-                        float rayAlpha = raytrace(endPos, lightDir, colortex15, true).w;
+                        float rayAlpha = raytrace(endPos, lightDir + 0.01 * randomOffsets[frameCounter % 6], colortex15, true).w;
                         float dist = max(max(abs(endPos.x - goalPos.x), abs(endPos.y - goalPos.y)), abs(endPos.z - goalPos.z));
                         if (dist < 0.505 && rayAlpha < 0.5) {
                             occlusionData += 1 << i;
