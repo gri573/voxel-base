@@ -73,7 +73,11 @@ emissive = (
     (mat > 10571 && mat < 10588) ||
     mat == 10592 ||
     mat == 10596 ||
-    (mat > 10603 && mat < 10628) ||
+    mat == 12604 ||
+    mat == 10612 ||
+    mat == 10616 ||
+    mat == 10620 ||
+    mat == 10624 ||
     mat == 10632 ||
     mat == 10640 ||
     (mat > 10647 && mat < 10660) ||
@@ -108,8 +112,11 @@ if (emissive) {
         case 10656:
         case 10496:
         case 10528:
-        case 10604:
             lightlevel = 20;
+            break;
+        case 12604:
+            lightlevel = 20;
+            lightcol = vec3(1.0, 0.1, 0.05);
             break;
         case 10548:
             lightlevel = 15;
@@ -327,6 +334,7 @@ cuboid = (
     mat == 10564 ||
     (mat > 10564 && mat < 10568) ||
     mat == 10604 ||
+    mat == 12604 ||
     mat == 10656 ||
     mat == 10660 ||
     mat == 10669 ||
@@ -379,9 +387,12 @@ if (cuboid) {
         case 10496:
         case 10528:
         case 10604:
+        case 12604:
             bounds[0] = ivec3(7, 0, 7);
             bounds[1] = ivec3(9, 10, 9);
             break;
+        case 10669:
+            bounds[1].y = 1;
         case 10720:
             bounds[0].z = 12;
             break;

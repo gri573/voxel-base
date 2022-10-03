@@ -42,16 +42,20 @@ void main() {
         vxData blockData = readVxMap(pixelCoord);
         vec3 pos = getVxPos(pixelCoord);
         vec3 oldPos = pos + floor(cameraPosition) - floor(previousCameraPosition);
+        bool previouslyInRange = isInRange(oldPos);
         ivec4[7] aroundData0;
         ivec4[7] aroundData1;
-        ivec2 oldCoords = getVxPixelCoords(oldPos);
-        aroundData0[0] = ivec4(texelFetch(colortex8, oldCoords, 0) * 65535 + 0.5);
-        aroundData1[0] = ivec4(texelFetch(colortex9, oldCoords, 0) * 65535 + 0.5);
-        int changed = isInRange(oldPos) ? 0 : 1; // need to update if voxel is new
-        int prevchanged = aroundData0[0].x % 256;
+        int changed;
+        if (previouslyInRange) {
+            ivec2 oldCoords = getVxPixelCoords(oldPos);
+            aroundData0[0] = ivec4(texelFetch(colortex8, oldCoords, 0) * 65535 + 0.5);
+            aroundData1[0] = ivec4(texelFetch(colortex9, oldCoords, 0) * 65535 + 0.5);
+            int prevchanged = aroundData0[0].x % 256;
+            changed = (prevchanged == 0) ? 0 : max(prevchanged - 1, 1); // need to update if voxel is new
+        } else changed = 1;
         // newhash and mathash are hashes of the material ID, which change if the block at the given location changes, so it can be detected
         int newhash =  blockData.mat / 4 % 256;
-        int mathash = isInRange(oldPos) ? aroundData0[0].x >> 8 : newhash;
+        int mathash = previouslyInRange ? aroundData0[0].x >> 8 : newhash;
         // if the material changed, then propagate that
         if (mathash != newhash) {
             // the change will not have any effects if it occurs further away than the light level at its location, because any light that passes through that location has faded out by then
@@ -95,7 +99,11 @@ void main() {
                     // if there is a nearby light already registered, assume they are the same (nearness suffices in order to retain more diverse information)
                         if (length(vec3(thisLight.xyz - sources[j].xyz)) < 0.2 * length(vec3(thisLight.xyz - 128)) + 0.01) {
                             newLight = false;
-                            if (sources[j].w < thisLight.w) sources[j] = thisLight;
+                            if (j > 0 && sources[j-1].w < thisLight.w) {
+                                sources[j] = sources[j-1];
+                                sources[j-1] = thisLight;
+                            }
+                            else if (sources[j].w < thisLight.w) sources[j] = thisLight;
                             break;
                         }
                     }

@@ -15,11 +15,15 @@ const int shadowMapResolution = 1024; //[64 128 256 512 1024 2048 4096]
 
 #define OCCLUSION_FILTER 1 //[0 1 2]
 
+#define SUN_SHADOWS
+
 #define SUN_ANGLE 0.5 //[-0.5 0 0.5]
 
 #define SUN_CHECK_SPREAD 3 //[2 3]
 
 #define SUN_CHECK_INTERVAL 20 //[5 7 10 15 20 30]
+
+#define BLOCKLIGHT_CHECK_INTERVAL 17 //[4 5 7 10 15 17 20 30]
 
 #define EMISSIVE_ORES
 
