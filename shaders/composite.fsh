@@ -71,7 +71,10 @@ void main() {
                 aroundData1[k] = ivec4(texelFetch(colortex9, aroundCoords, 0) * 65535 + 0.5);
                 int aroundChanged = aroundData0[k].x % 256;
                 changed = max(aroundChanged - 1, changed);
-            } else aroundData0[k] = ivec4(0);
+            } else {
+                aroundData0[k] = ivec4(0);
+                aroundData1[k] = ivec4(0);
+            
         }
         // copy data so it is written back to the buffer if unchanged
         dataToWrite0.xzw = aroundData0[0].xzw;
@@ -93,7 +96,7 @@ void main() {
                     ivec4 thisLight = ivec4(theselights[i].x % 256, theselights[i].x >> 8, theselights[i].y % 256, theselights[i].y >> 8);
                     thisLight.xyz += offsets[k];
                     thisLight.w -= 1;
-                    if (thisLight.w <= 0) continue; // ignore light sources with zero intensity
+                    if (thisLight.w <= 0) break; // ignore light sources with zero intensity
                     bool newLight = true;
                     for (int j = 0; j < 3; j++) {
                     // if there is a nearby light already registered, assume they are the same (nearness suffices in order to retain more diverse information)
