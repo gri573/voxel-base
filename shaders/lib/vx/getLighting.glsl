@@ -63,7 +63,9 @@ vec3 getBlockLight(vec3 vxPos, vec3 normal) {
             vec4(lightData1.x % 256, lightData1.x >> 8, lightData1.y % 256, (lightData1.y >> 8)) - vec4(128, 128, 128, 0),
             vec4(lightData1.z % 256, lightData1.z >> 8, lightData1.w % 256, (lightData1.w >> 8)) - vec4(128, 128, 128, 0)
         );
+        #if SMOOTH_LIGHTING == 2
         float intMult0 = (1 - abs(fract(vxPos.x) - 0.5)) * (1 - abs(fract(vxPos.y) - 0.5)) * (1 - abs(fract(vxPos.z) - 0.5));
+        #endif
         vec3 ndotls;
         bvec3 isHere;
         bool calcNdotLs = (normal == vec3(0));
@@ -71,7 +73,11 @@ vec3 getBlockLight(vec3 vxPos, vec3 normal) {
             vec3 lightDir = lights[k].xyz + 0.5 - fract(vxPos);
             isHere[k] = (max(max(abs(lightDir.x), abs(lightDir.y)), abs(lightDir.z)) < 0.511);
             if (isHere[k]) lights[k].w -= 1;
+            #if SMOOTH_LIGHTING == 2
             lights[k].w *= isHere[k] ? 1 : intMult0;
+            #elif SMOOTH_LIGHTING == 1
+            lights[k].w = - abs(lightDir.x) - abs(lightDir.y) - abs(lightDir.z);
+            #endif
             ndotls[k] = (isHere[k] || calcNdotLs) ? 1 : max(0, dot(normalize(lightDir), normal));
         }
 
@@ -82,7 +88,11 @@ vec3 getBlockLight(vec3 vxPos, vec3 normal) {
             vxData lightSourceData = readVxMap(getVxPixelCoords(vxPos + lights[k].xyz));
             lightCols[k] = lightSourceData.lightcol * (lightSourceData.emissive ? 1.0 : 0.0);
             lightMats[k] = lightSourceData.mat;
+            #if SMOOTH_LIGHTING == 1
+            lights[k].w = max(lights[k].w + lightSourceData.lightlevel, 0.0);
+            #endif
         }
+        #if SMOOTH_LIGHTING == 2
         vec3 offsetDir = sign(fract(vxPos) - 0.5);
         vec3 floorPos = floor(vxPosOld);
         for (int k = 1; k < 8; k++) {
@@ -109,6 +119,7 @@ vec3 getBlockLight(vec3 vxPos, vec3 normal) {
                 }
             }
         }
+        #endif
         vec3 occlusionData = getOcclusion(vxPosOld, normal);
         for (int k = 0; k < 3; k++) lightCol += lightCols[k] * occlusionData[k] * pow(lights[k].w * BLOCKLIGHT_STRENGTH / 20.0, BLOCKLIGHT_STEEPNESS) * ndotls[k];
         return lightCol;

@@ -11,6 +11,7 @@ Shader options and very basic functions, nothing else
     #define BLOCKLIGHT_STEEPNESS 2.0 //[1.0 1.3 1.5 1.7 2.0]
 
     #define OCCLUSION_FILTER 1 //[0 1 2]
+    #define SMOOTH_LIGHTING 1 //[0 1 2]
 
     #define SUN_SHADOWS
     #define SUN_ANGLE 0.5 //[-0.5 0 0.5]
