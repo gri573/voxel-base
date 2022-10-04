@@ -74,7 +74,7 @@ void main() {
             } else {
                 aroundData0[k] = ivec4(0);
                 aroundData1[k] = ivec4(0);
-            
+            }
         }
         // copy data so it is written back to the buffer if unchanged
         dataToWrite0.xzw = aroundData0[0].xzw;
