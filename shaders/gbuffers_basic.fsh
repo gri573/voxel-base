@@ -13,11 +13,6 @@ uniform vec3 fogColor;
 uniform vec3 cameraPosition;
 uniform vec3 previousCameraPosition;
 uniform sampler2D tex;
-uniform sampler2D colortex8;
-uniform sampler2D colortex9;
-uniform sampler2D colortex10;
-uniform sampler2D shadowcolor0;
-uniform sampler2D shadowcolor1;
 uniform ivec2 atlasSize;
 
 #include "/lib/vx/getLighting.glsl"
@@ -39,7 +34,12 @@ void main() {
             color.rgb *= lightBlockData.lightcol * ((lightData.w >> 8) / 16.0 + 0.1) * vec3(visible, 1, 1);//lightPos * 0.1 + 0.5;
         }
     }*/
-    vec3 lightCol = getBlockLight(vxPos, normal) + 0.6 * (lmCoord.y + 0.2) * fogColor + 0.7 * getSunLight(vxPosOld, normal);
+    float dayTime = (worldTime % 24000) * 0.0002618;
+    const vec2 sunRotationData = vec2(cos(SUN_ANGLE), sin(SUN_ANGLE));
+    vec3 sunVec = vec3(sin(dayTime), sunRotationData * cos(dayTime));
+    sunVec *= sign(sunVec.y);
+    float ndotl = dot(normal, sunVec);
+    vec3 lightCol = getBlockLight(vxPos, normal) + 0.6 * (lmCoord.y + 0.2) * fogColor + (ndotl > 0 ? 0.7 * ndotl * vec3(1.0, 0.8, 0.7) * getSunLight(vxPosOld) : vec3(0.0));
     color.rgb *= lightCol;
     /*RENDERTARGETS:0*/
     gl_FragData[0] = color;

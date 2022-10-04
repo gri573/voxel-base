@@ -42,7 +42,7 @@ void main() {
         vxData blockData = readVxMap(pixelCoord);
         vec3 pos = getVxPos(pixelCoord);
         vec3 oldPos = pos + floor(cameraPosition) - floor(previousCameraPosition);
-        bool previouslyInRange = isInRange(oldPos);
+        bool previouslyInRange = isInRange(oldPos, 1);
         ivec4[7] aroundData0;
         ivec4[7] aroundData1;
         int changed;
@@ -54,8 +54,8 @@ void main() {
             changed = (prevchanged == 0) ? 0 : max(prevchanged - 1, 1); // need to update if voxel is new
         } else changed = 1;
         // newhash and mathash are hashes of the material ID, which change if the block at the given location changes, so it can be detected
-        int newhash =  blockData.mat / 4 % 256;
-        int mathash = previouslyInRange ? aroundData0[0].x >> 8 : newhash;
+        int newhash =  blockData.mat > 0 ? blockData.mat / 4 % 255 + 1 : 0;
+        int mathash = previouslyInRange ? aroundData0[0].x >> 8 : 0;
         // if the material changed, then propagate that
         if (mathash != newhash) {
             // the change will not have any effects if it occurs further away than the light level at its location, because any light that passes through that location has faded out by then

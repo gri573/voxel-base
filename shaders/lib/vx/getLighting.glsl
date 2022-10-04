@@ -1,8 +1,18 @@
+#ifndef LIGHTING
+#define LIGHTING
+#ifndef VOXEL_TEXTURES
+#define VOXEL_TEXTURES
+uniform sampler2D shadowcolor0;
+uniform sampler2D shadowcolor1;
+uniform sampler2D colortex8;
+uniform sampler2D colortex9;
+#ifdef SUN_SHADOWS
+uniform sampler2D colortex10;
+#endif
+#endif
 #include "/lib/vx/voxelReading.glsl"
 #include "/lib/vx/voxelMapping.glsl"
 #include "/lib/vx/raytrace.glsl"
-#ifndef LIGHTING
-#define LIGHTING
 vec2 tex8size0 = vec2(textureSize(colortex8, 0));
 
 vec3 getOcclusion(vec3 vxPos, vec3 normal) {
@@ -13,6 +23,7 @@ vec3 getOcclusion(vec3 vxPos, vec3 normal) {
         vxPos *= 2;
     }
     vec3 occlusion = vec3(0);
+    #if OCCLUSION_FILTER > 0
     vxPos += normal - 0.5;
     vec3 floorPos = floor(vxPos);
     float totalInt = 1; // total intensity (calculating weighted average of surrounding occlusion data)
@@ -26,10 +37,16 @@ vec3 getOcclusion(vec3 vxPos, vec3 normal) {
             totalInt -= intMult;
             continue;
         }
+        #else
+        vec3 cornerPos = vxPos;
+        float intMult = 1.0;
+        #endif
         ivec4 lightData = ivec4(texelFetch(colortex8, getVxPixelCoords(cornerPos + 0.5), 0) * 65535 + 0.5);
         for (int i = 0; i < 3; i++) occlusion[i] += ((lightData.y >> 3 * k + i) % 2) * intMult;
+    #if OCCLUSION_FILTER > 0
     }
     occlusion /= totalInt;
+    #endif
     return occlusion;
 }
 // get the blocklight value at a given position. optionally supply a normal vector to account for dot product shading
@@ -95,13 +112,13 @@ vec3 getBlockLight(vec3 vxPos, vec3 normal) {
         vec3 occlusionData = getOcclusion(vxPosOld, normal);
         for (int k = 0; k < 3; k++) lightCol += lightCols[k] * occlusionData[k] * pow(lights[k].w * BLOCKLIGHT_STRENGTH / 20.0, BLOCKLIGHT_STEEPNESS) * ndotls[k];
         return lightCol;
-    } else return vec3(lmCoord.x);
+    } else return vec3(0);
 }
 
 vec3 getBlockLight(vec3 vxPos) {
     return getBlockLight(vxPos, vec3(0));
 }
-
+#ifdef SUN_SHADOWS
 float getSunOcclusion(vec3 vxPos) {
     int k = 0;
     // zoom in appropriately
@@ -109,6 +126,7 @@ float getSunOcclusion(vec3 vxPos) {
         vxPos *= 2;
     }
     float occlusion = 0;
+    #if OCCLUSION_FILTER > 0
     vxPos -= 0.5;
     vec3 floorPos = floor(vxPos);
     float totalInt = 1; // track total intensity
@@ -122,21 +140,27 @@ float getSunOcclusion(vec3 vxPos) {
             totalInt -= intMult;
             continue;
         }
+        #else
+        vec3 cornerPos = vxPos;
+        float intMult = 1.0;
+        #endif
         ivec4 sunData = ivec4(texelFetch(colortex10, getVxPixelCoords(cornerPos + 0.5), 0) * 65535 + 0.5);
         occlusion += ((k == 0) ? (sunData.x % 4 == SUN_CHECK_SPREAD ? 1 : 0) : ((sunData.x >> k + 3) % 2)) * intMult;
+    #if OCCLUSION_FILTER > 0
     }
     occlusion /= totalInt;
+    #endif
     return occlusion;
 }
-vec3 getSunLight(vec3 vxPos, vec3 normal) {
-    float dayTime = (worldTime % 24000) * 0.0002618;
-    vec3 sunDir = vec3(cos(dayTime), sin(dayTime) * cos(SUN_ANGLE), sin(dayTime) * sin(SUN_ANGLE));
+
+float getSunLight(vec3 vxPos) {//, vec3 normal) {
+/*    float dayTime = (worldTime % 24000) * 0.0002618;
+    vec3 sunDir = GetWorldSunVector();
     sunDir *= sign(sunDir.y);
     float ndotl = dot(normal, sunDir); // angle based sun intensity multiplier
-    if (ndotl <= 0) return vec3(0);
-    float occlusion;
-    if (!isInRange(vxPos)) occlusion = clamp(lmCoord.y * lmCoord.y * 4 - 2.5, 0, 1) * ndotl;
-    else occlusion = getSunOcclusion(vxPos);
-    return occlusion * vec3(1.0, 0.8, 0.7) * ndotl;
+    if (ndotl <= 0) return 0.0;*/
+    if (!isInRange(vxPos)) return 1.0;
+    return getSunOcclusion(vxPos);
 }
+#endif
 #endif

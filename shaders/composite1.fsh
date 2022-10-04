@@ -99,7 +99,7 @@ void main() {
             #endif
 
             bool doBlockLight = (int(pos.y) % BLOCKLIGHT_CHECK_INTERVAL == frameCounter % BLOCKLIGHT_CHECK_INTERVAL);
-            if (doBlockLight) {
+            if (doBlockLight || !isInRange(pos0)) {
                 ivec4 lightData0 = ivec4(texelFetch(colortex8, getVxPixelCoords(pos), 0) * 65535 + 0.5);
                 ivec4 lightData1 = ivec4(texelFetch(colortex9, getVxPixelCoords(pos), 0) * 65535 + 0.5);
                 int changed = isInRange(oldPos0) ? lightData0.x % 256 : 1;
