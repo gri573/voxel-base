@@ -42,7 +42,7 @@ void main() {
         vxData blockData = readVxMap(pixelCoord);
         vec3 pos = getVxPos(pixelCoord);
         vec3 oldPos = pos + floor(cameraPosition) - floor(previousCameraPosition);
-        bool previouslyInRange = isInRange(oldPos, 1);
+        bool previouslyInRange = isInRange(oldPos);
         ivec4[7] aroundData0;
         ivec4[7] aroundData1;
         int changed;
