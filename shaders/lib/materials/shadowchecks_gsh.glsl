@@ -28,6 +28,7 @@ switch (matV[0]) {
         //avgPos += vec3(0.0, 0.1, 0.0);
         break;
     case 50016:
+    case 50996:
         tracemat = false;
         break;
     default:
