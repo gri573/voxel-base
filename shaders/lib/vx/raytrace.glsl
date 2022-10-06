@@ -49,8 +49,8 @@ vec4 handledata(vxData data, sampler2D atlas, inout vec3 pos, vec3 dir, int n) {
             pos += w * dir;
         }
         vec2 spritecoord = vec2(n != 0 ? fract(pos.x) : fract(pos.z), n != 1 ? fract(-pos.y) : fract(pos.z)) * 2 - 1;
-        vec2 texcoord = data.texcoord + (data.spritesize - 0.5) * spritecoord / atlasSize;
-        vec4 color = texture2D(atlas, texcoord);
+        ivec2 texcoord = ivec2(data.texcoord * atlasSize + (data.spritesize - 0.5) * spritecoord);
+        vec4 color = texelFetch(atlas, texcoord, 0);
         if (!data.alphatest) color.a = 1;
         // multiply by vertex color for foliage, water etc
         color.rgb *= data.emissive ? vec3(1) : data.lightcol;
@@ -66,8 +66,8 @@ vec4 handledata(vxData data, sampler2D atlas, inout vec3 pos, vec3 dir, int n) {
     vec3 p1 = blockInnerPos + w1 * dir;
     bool valid0 = (max(max(abs(p0.x - 0.5), abs(p0.y - 0.5)), abs(p0.z - 0.5)) < 0.48);
     bool valid1 = (max(max(abs(p1.x - 0.5), abs(p1.y - 0.5)), abs(p1.z - 0.5)) < 0.48);
-    vec4 color0 = valid0 ? texture2D(atlas, data.texcoord + (data.spritesize - 0.5) * (1 - p0.xy * 2) / atlasSize) : vec4(0);
-    vec4 color1 = valid1 ? texture2D(atlas, data.texcoord + (data.spritesize - 0.5) * (1 - p1.xy * 2) / atlasSize) : vec4(0);
+    vec4 color0 = valid0 ? texelFetch(atlas, ivec2(data.texcoord * atlasSize + (data.spritesize - 0.5) * (1 - p0.xy * 2)), 0) : vec4(0);
+    vec4 color1 = valid1 ? texelFetch(atlas, ivec2(data.texcoord * atlasSize + (data.spritesize - 0.5) * (1 - p1.xy * 2)), 0) : vec4(0);
     color0.xyz *= data.emissive ? vec3(1) : data.lightcol;
     color1.xyz *= data.emissive ? vec3(1) : data.lightcol;
     if (w0 < w1) {
