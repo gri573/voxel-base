@@ -60,4 +60,40 @@ bool isInRange(vec3 pos, float margin) {
 bool isInRange(vec3 pos) {
     return isInRange(pos, 0);
 }
+
+mat3 getRotMat(vec3 dir) {
+    mat3 rotmat;
+    rotmat[0] = normalize(cross(dir, vec3(0.000023, 1, -0.000064)));
+    rotmat[1] = normalize(cross(dir, rotmat[0]));
+    rotmat[2] = cross(rotmat[0], rotmat[1]);
+    return rotmat;
+}
+
+vec4 getSunRayStartPos(vec3 pos0, vec3 sunDir) {
+    vec3 borderPos = vec3(vxRange, VXHEIGHT * VXHEIGHT, vxRange) / 2.0 - 0.5;
+    vec3 pos = getRotMat(sunDir) * pos0;
+    float w = INF;
+    float otherW = -INF;
+    for (int k = 0; k < 3; k++) {
+        float w0 = (borderPos[k] - pos[k]) / sunDir[k];
+        float w1 = (-borderPos[k] - pos[k]) / sunDir[k];
+        if (w0 > w1) {
+            w = min(w0, w);
+            otherW = max(w1, otherW);
+        } else {
+            w = min(w1, w);
+            otherW = max(w0, otherW);
+        }
+    }
+    return vec4(pos + (w) * sunDir, otherW - w);
+}
+
+vec3 getShadowPos(vec3 vxPos, vec3 sunDir) {
+    //vxPos -= vxPos.y / sunDir.y * sunDir;
+    return transpose(getRotMat(sunDir)) * vxPos / vec2(1.5 * vxRange, 1).xxy + vec2(0.5, 0).xxy;
+}
+vec3 getShadowPos(vec3 vxPos, mat3 sunRotMat) {
+    //vxPos -= vxPos.y / sunDir.y * sunDir;
+    return transpose(sunRotMat) * vxPos / vec2(1.5 * vxRange, 1).xxy + vec2(0.5, 0).xxy;
+}
 #endif

@@ -36,10 +36,10 @@ void main() {
     }*/
     float dayTime = (worldTime % 24000) * 0.0002618;
     const vec2 sunRotationData = vec2(cos(SUN_ANGLE), sin(SUN_ANGLE));
-    vec3 sunVec = vec3(sin(dayTime), sunRotationData * cos(dayTime));
+    vec3 sunVec = vec3(cos(dayTime), sunRotationData * sin(dayTime));
     sunVec *= sign(sunVec.y);
     float ndotl = dot(normal, sunVec);
-    vec3 lightCol = getBlockLight(vxPos, normal) + 0.6 * lmCoord.y * fogColor + 0.2 + (ndotl > 0 ? 0.7 * ndotl * vec3(1.0, 0.8, 0.7) * getSunLight(vxPosOld) : vec3(0.0));
+    vec3 lightCol = getBlockLight(vxPos, normal) + 0.6 * lmCoord.y * fogColor + 0.2 + (ndotl > 0 ? 0.7 * ndotl * vec3(1.0, 0.8, 0.7) * getSunLight(vxPosOld, sunVec) : vec3(0.0));
     color.rgb *= lightCol;
     /*RENDERTARGETS:0*/
     gl_FragData[0] = color;
