@@ -38,11 +38,11 @@ void main() {
     ivec2 pixelCoord = ivec2(texCoord * tex8size);
     ivec4 dataToWrite0;
     ivec4 dataToWrite1;
-    if (max(pixelCoord.x, pixelCoord.y) < shadowMapResolution) {
+    //if (max(pixelCoord.x, pixelCoord.y) < shadowMapResolution) {
         vxData blockData = readVxMap(pixelCoord);
         vec3 pos = getVxPos(pixelCoord);
-        vec3 oldPos = pos + floor(cameraPosition) - floor(previousCameraPosition);
-        bool previouslyInRange = isInRange(oldPos);
+        vec3 oldPos = pos + (floor(cameraPosition) - floor(previousCameraPosition));
+        bool previouslyInRange = length(oldPos - pos) > 0.5 ? isInRange(oldPos, 1) : true;
         ivec4[7] aroundData0;
         ivec4[7] aroundData1;
         int changed;
@@ -129,7 +129,7 @@ void main() {
                 sources[2].x + (sources[2].y << 8),
                 sources[2].z + (sources[2].w << 8));
         }
-    }
+    //}
     /*RENDERTARGETS:8,9*/
     gl_FragData[0] = vec4(dataToWrite0) / 65535.0;
     gl_FragData[1] = vec4(dataToWrite1) / 65535.0;

@@ -1,6 +1,8 @@
 #ifndef READING
 #define READING
 
+#include "/lib/vx/voxelMapping.glsl"
+
 struct vxData {
     vec2 texcoord;
     vec3 lower;
@@ -55,4 +57,9 @@ vxData readVxMap(ivec2 coords) {
     }
     return data;
 }
+
+vxData readVxMap(vec3 vxPos) {
+    return readVxMap(getVxPixelCoords(vxPos));
+}
+
 #endif

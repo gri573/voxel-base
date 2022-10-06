@@ -8,12 +8,14 @@ in vec2 texCoord;
 in vec3 sunDir;
 
 uniform int frameCounter;
+uniform float frameTimeCounter;
 uniform vec3 cameraPosition;
 uniform vec3 previousCameraPosition;
 uniform sampler2D shadowcolor0;
 uniform sampler2D shadowcolor1;
 uniform sampler2D colortex8;
 uniform sampler2D colortex9;
+uniform sampler2D noisetex;
 #ifdef SUN_SHADOWS
 uniform sampler2D colortex10;
 #endif
@@ -28,6 +30,7 @@ vec3[6] randomOffsets = vec3[6](vec3(0.64, -0.05, 0.46), vec3(0.39, -0.93, 0.92)
 #include "/lib/vx/voxelMapping.glsl"
 #include "/lib/vx/voxelReading.glsl"
 #include "/lib/vx/raytrace.glsl"
+#include "/lib/atmospherics/caustics.glsl"
 
 void main() {
     ivec4 dataToWrite0;
@@ -43,28 +46,20 @@ void main() {
         vec3 offset0 = floor(cameraPosition) - floor(previousCameraPosition);
         vec3 offset = offset0;
         vec3 oldPos = pos + offset;
-        // only do sunlight every SUN_CHECK_INTERVAL frames
         #ifdef SUN_SHADOWS
-        bool doSunLight = (int(pos.y) % SUN_CHECK_INTERVAL == frameCounter % SUN_CHECK_INTERVAL);
-        ivec4 sunData0 = ivec4(texelFetch(colortex10, getVxPixelCoords(oldPos), 0) * 65535 + 0.5);
-        // nearness of voxels with sunlight / shadow
-        int sunFF = sunData0.x % 4;
-        int shadowFF = (sunData0.x >> 2) % 4;
-        // propagate it
-        for (int i = 1; i < 7; i++) {
-            if (!isInRange(oldPos + offsets[i])) continue;
-            ivec4 sunData = ivec4(texelFetch(colortex10, getVxPixelCoords(oldPos + offsets[i]), 0) * 65535 + 0.5);
-            sunFF = max(sunFF, sunData.x % 4 - 1);
-            shadowFF = max(shadowFF, (sunData.x >> 2) % 4 - 1);
-        }
-        // update only if there's either no sun- or shadow data available (first frame) or both (edge areas)
-        if (doSunLight && !(shadowFF == 0 ^^ sunFF == 0)) {
-            vec3 pos1 = pos;
-            vec4 sunOcclusion = raytrace(pos1, sunDir * sign(sunDir.y) * vxRange, colortex15);
-            sunFF = sunOcclusion.a > 0.5 ? 0 : SUN_CHECK_SPREAD;
-            shadowFF = sunOcclusion.a > 0.5 ? SUN_CHECK_SPREAD : 0;
-        }
-        int sunLightData = sunFF + (shadowFF << 2); // this will be written to colortex10.x
+            vec3 sunMoonDir = sunDir * (sunDir.y > 0.0 ? 1.0 : -1.0);
+            vec3 topDownPos = 1.5 * vec3((pixelCoord.x + 0.5) / shadowMapResolution - 0.5, (pixelCoord.y + 0.5) / shadowMapResolution - 0.5, 0) * vxRange;
+            vec4 sunPos0 = getSunRayStartPos(topDownPos, sunMoonDir);
+            vec3 sunPos = sunPos0.xyz;
+            vec3 transPos = vec3(-10000); // translucent Position
+            vec4 sunRayColor = sunPos0.w < 0 ? raytrace(sunPos, sunMoonDir * sunPos0.w, transPos, colortex15, true) : vec4(0, 0, 0, 1);
+            int transMat = transPos.y > -9999 ? readVxMap(transPos).mat : 0;
+            // 31000 is water
+            sunRayColor.rgb = (sunRayColor.rgb * sunRayColor.a + 1.0 - sunRayColor.a) * (transMat == 31000 ? getCaustics(transPos + floor(cameraPosition)) * 3.3 : 1);
+            sunRayColor.rgb = clamp(sunRayColor.rgb, vec3(0), vec3(1));
+            dataToWrite1.r = int(sunRayColor.r * 15.5) + (int(sunRayColor.g * 15.5) << 4) + (int(sunRayColor.b * 15.5) << 8);
+            dataToWrite1.g = int((0.5 + dot(sunPos, sunDir) / (1.5  * vxRange)) * 65535 + 0.5);
+            dataToWrite1.b = int((0.5 + dot(transPos.y > -9999 ? transPos : sunPos, sunDir) / (1.5  * vxRange)) * 65535 + 0.5);
         #endif
         int newOcclusionData = 0;
         // do occlusion checks at different zoom levels
@@ -73,33 +68,8 @@ void main() {
             vec3 oldPos0 = pos0 + offset;
             int occlusionData = (length(offset) < 0.5) ? dataToWrite0.y : int(texelFetch(colortex8, getVxPixelCoords(oldPos0), 0).g * 65535 + 0.5);
             occlusionData = (occlusionData >> 3 * k) % 8;
-
-            //sun stuff
-            #ifdef SUN_SHADOWS
-            bool sunDone = (k == 0);
-            if (k > 0) {
-                if (doSunLight || !isInRange(oldPos0)) {
-                    ivec4 sunColData = ivec4(texelFetch(colortex10, getVxPixelCoords(pos + offset), 0) * 65535 + 0.5);
-                    // the update condition stops working at the last iteration for whatever reason
-                    if (k == OCCLUSION_CASCADE_COUNT - 1 || (sunColData.x % 4 > 0 && (sunColData.x >> 2) % 4 > 0) || !isInRange(oldPos0)) {
-                        sunDone = true;
-                        vec3 pos1 = pos;
-                        vec4 sunOcclusion = raytrace(pos1, sunDir * sign(sunDir.y) * vxRange + 0.01 * randomOffsets[frameCounter % 6], colortex15);
-                        sunLightData += (sunOcclusion.w > 0.5 ? 0 : 1) << (k + 3);
-                    }
-                }/* else if (!isInRange(oldPos0)) {
-                    int sunOcclusion = int(texelFetch(colortex10, getVxPixelCoords(oldPos0 * 0.5), 0).x * 65535 + 0.5);
-                    sunOcclusion = (sunOcclusion >> (k + 2)) % 2;
-                    sunLightData += sunOcclusion << (k + 3);
-                }*/
-            }
-            if (!sunDone) {
-                sunLightData += ((int(texelFetch(colortex10, getVxPixelCoords(oldPos0), 0).x * 65535 + 0.5) >> (3 + k)) % 2) << (3 + k);
-            }
-            #endif
-
             bool doBlockLight = (int(pos.y) % BLOCKLIGHT_CHECK_INTERVAL == frameCounter % BLOCKLIGHT_CHECK_INTERVAL);
-            if (doBlockLight || !isInRange(pos0)) {
+            if (doBlockLight || !isInRange(oldPos0)) {
                 ivec4 lightData0 = ivec4(texelFetch(colortex8, getVxPixelCoords(pos), 0) * 65535 + 0.5);
                 ivec4 lightData1 = ivec4(texelFetch(colortex9, getVxPixelCoords(pos), 0) * 65535 + 0.5);
                 int changed = isInRange(oldPos0) ? lightData0.x % 256 : 1;
@@ -127,9 +97,6 @@ void main() {
                         dataToWrite0.x = (dataToWrite0.x >> 8) << 8;
                     }
                 }
-            } else if (!isInRange(oldPos0)) {
-                occlusionData = int(texelFetch(colortex8, getVxPixelCoords(oldPos0 * 0.5), 0).g * 65535 + 0.5);
-                occlusionData = (occlusionData >> 3 * (k-1)) % 8;
             }
             newOcclusionData += occlusionData << (3 * k);
             // zoom in
@@ -138,9 +105,6 @@ void main() {
         }
         //write data
         dataToWrite0.y = newOcclusionData;
-        #ifdef SUN_SHADOWS
-        dataToWrite1.x = sunLightData + ((dataToWrite1.x >> 8) << 8);
-        #endif
     }
     /*RENDERTARGETS:8*/
     gl_FragData[0] = vec4(dataToWrite0) / 65535.0;

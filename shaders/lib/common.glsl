@@ -82,3 +82,6 @@ const int colortex10Format = RGBA16;
 const bool colortex8Clear = false;
 const bool colortex9Clear = false;
 const bool colortex10Clear = false;
+
+//infinite... almost
+#define INF 100000.0
