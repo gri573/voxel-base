@@ -41,7 +41,7 @@ float aabbIntersect(vxData data, vec3 pos, vec3 dir, inout int n) {
     return w;
 }
 // returns color data of the block at pos, when hit by ray in direction dir
-vec4 handledata(vxData data, sampler2D atlas, vec3 pos, vec3 dir, int n) {
+vec4 handledata(vxData data, sampler2D atlas, inout vec3 pos, vec3 dir, int n) {
     if (!data.crossmodel) {
         if (data.cuboid) {
             float w = aabbIntersect(data, pos, dir, n);
@@ -58,18 +58,23 @@ vec4 handledata(vxData data, sampler2D atlas, vec3 pos, vec3 dir, int n) {
     }
     // get around floating point errors using an offset
     vec3 offset = 0.01 * eye[n] * sign(dir[n]);
-    pos = fract(pos + offset) - offset;
+    vec3 blockInnerPos = fract(pos + offset) - offset;
     // ray-plane intersections
-    float w0 = (1 - pos.x - pos.z) / (dir.x + dir.z);
-    float w1 = (pos.x - pos.z) / (dir.z - dir.x);
-    vec3 p0 = pos + w0 * dir;
-    vec3 p1 = pos + w1 * dir;
+    float w0 = (1 - blockInnerPos.x - blockInnerPos.z) / (dir.x + dir.z);
+    float w1 = (blockInnerPos.x - blockInnerPos.z) / (dir.z - dir.x);
+    vec3 p0 = blockInnerPos + w0 * dir;
+    vec3 p1 = blockInnerPos + w1 * dir;
     bool valid0 = (max(max(abs(p0.x - 0.5), abs(p0.y - 0.5)), abs(p0.z - 0.5)) < 0.48);
     bool valid1 = (max(max(abs(p1.x - 0.5), abs(p1.y - 0.5)), abs(p1.z - 0.5)) < 0.48);
     vec4 color0 = valid0 ? texture2D(atlas, data.texcoord + (data.spritesize - 0.5) * (1 - p0.xy * 2) / atlasSize) : vec4(0);
     vec4 color1 = valid1 ? texture2D(atlas, data.texcoord + (data.spritesize - 0.5) * (1 - p1.xy * 2) / atlasSize) : vec4(0);
     color0.xyz *= data.emissive ? vec3(1) : data.lightcol;
     color1.xyz *= data.emissive ? vec3(1) : data.lightcol;
+    if (w0 < w1) {
+        pos = color0.a > 0.01 ? p0 : p1;
+    } else {
+        pos = color1.a > 0.01 ? p1 : p0;
+    }
     // the more distant intersection position only contributes by the amount of light coming through the closer one
     return (w0 < w1) ? (vec4(color0.xyz * color0.a, color0.a) + (1 - color0.a) * vec4(color1.xyz * color1.a, color1.a)) : (vec4(color1.xyz * color1.a, color1.a) + (1 - color1.a) * vec4(color0.xyz * color0.a, color0.a));
 }
