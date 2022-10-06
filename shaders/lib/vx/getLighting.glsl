@@ -163,19 +163,20 @@ float getSunOcclusion(vec3 vxPos) {
     #endif
     return occlusion;
 }
-vec2 shadowoffsets[9] = vec2[9](
-    vec2( 0.0   , 0.0   ),
-    vec2( 0.0   , 1.0   ),
-    vec2( 0.7071, 0.7071),
-    vec2( 1.0   , 0.0   ),
-    vec2( 0.7071,-0.7071),
-    vec2( 0.0   ,-1.0   ),
-    vec2(-0.7071,-0.7071),
-    vec2(-1.0   , 0.0   ),
-    vec2(-0.7071, 0.7071)
+
+vec2[9] shadowoffsets = vec2[9](
+    vec2( 0.0       ,  0.0),
+    vec2( 0.47942554,  0.87758256),
+    vec2( 0.95954963,  0.28153953),
+    vec2( 0.87758256, -0.47942554),
+    vec2( 0.28153953, -0.95954963),
+    vec2(-0.47942554, -0.87758256),
+    vec2(-0.95954963, -0.28153953),
+    vec2(-0.87758256,  0.47942554),
+    vec2(-0.28153953,  0.95954963)
 );
 
-vec3 getSunLight(vec3 vxPos, vec3 sunDir) {
+vec3 getSunLight(vec3 vxPos, vec3 sunDir, vec3 normal) {
     vec2 tex8size0 = vec2(textureSize(colortex8, 0));
     vec3 shadowPos = getShadowPos(vxPos, sunDir);
     vec3 sunColor = vec3(0);
@@ -191,7 +192,7 @@ vec3 getSunLight(vec3 vxPos, vec3 sunDir) {
         sunColor += shadowPos.z > sunData.y ? (shadowPos.z > sunData.z ? vec3(1) : sunColor1) : vec3(0.0);
     #if OCCLUSION_FILTER > 0
     }
-    sunColor *= 0.125;
+    sunColor *= 0.2;
     #endif
     return sunColor;
     //return shadowPos;

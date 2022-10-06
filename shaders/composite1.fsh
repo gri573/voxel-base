@@ -46,22 +46,20 @@ void main() {
         vec3 offset0 = floor(cameraPosition) - floor(previousCameraPosition);
         vec3 offset = offset0;
         vec3 oldPos = pos + offset;
-        // only do sunlight every SUN_CHECK_INTERVAL frames // outdated comment
-        //#undef SUN_SHADOWS
         #ifdef SUN_SHADOWS
-        vec3 sunMoonDir = sunDir * (sunDir.y > 0.0 ? 1.0 : -1.0);
-        vec3 topDownPos = 1.5 * vec3((pixelCoord.x + 0.5) / shadowMapResolution - 0.5, (pixelCoord.y + 0.5) / shadowMapResolution - 0.5, 0) * vxRange;
-        vec4 sunPos0 = getSunRayStartPos(topDownPos, sunMoonDir);
-        vec3 sunPos = sunPos0.xyz;
-        vec3 transPos = vec3(-10000); // translucent Position
-        vec4 sunRayColor = sunPos0.w < 0 ? raytrace(sunPos, sunMoonDir * sunPos0.w, transPos, colortex15, true) : vec4(0, 0, 0, 1);
-        int transMat = transPos.y > -9999 ? readVxMap(transPos).mat : 0;
-        // 31000 is water
-        sunRayColor.rgb = (sunRayColor.rgb * sunRayColor.a + 1.0 - sunRayColor.a) * (transMat == 31000 ? getCaustics(transPos + floor(cameraPosition)) * 3.3 : 1);
-        sunRayColor.rgb = clamp(sunRayColor.rgb, vec3(0), vec3(1));
-        dataToWrite1.r = int(sunRayColor.r * 15.5) + (int(sunRayColor.g * 15.5) << 4) + (int(sunRayColor.b * 15.5) << 8);
-        dataToWrite1.g = int((0.5 + dot(sunPos, sunDir) / (1.5  * vxRange)) * 65535 + 0.5);
-        dataToWrite1.b = int((0.5 + dot(transPos.y > -9999 ? transPos : sunPos, sunDir) / (1.5  * vxRange)) * 65535 + 0.5);
+            vec3 sunMoonDir = sunDir * (sunDir.y > 0.0 ? 1.0 : -1.0);
+            vec3 topDownPos = 1.5 * vec3((pixelCoord.x + 0.5) / shadowMapResolution - 0.5, (pixelCoord.y + 0.5) / shadowMapResolution - 0.5, 0) * vxRange;
+            vec4 sunPos0 = getSunRayStartPos(topDownPos, sunMoonDir);
+            vec3 sunPos = sunPos0.xyz;
+            vec3 transPos = vec3(-10000); // translucent Position
+            vec4 sunRayColor = sunPos0.w < 0 ? raytrace(sunPos, sunMoonDir * sunPos0.w, transPos, colortex15, true) : vec4(0, 0, 0, 1);
+            int transMat = transPos.y > -9999 ? readVxMap(transPos).mat : 0;
+            // 31000 is water
+            sunRayColor.rgb = (sunRayColor.rgb * sunRayColor.a + 1.0 - sunRayColor.a) * (transMat == 31000 ? getCaustics(transPos + floor(cameraPosition)) * 3.3 : 1);
+            sunRayColor.rgb = clamp(sunRayColor.rgb, vec3(0), vec3(1));
+            dataToWrite1.r = int(sunRayColor.r * 15.5) + (int(sunRayColor.g * 15.5) << 4) + (int(sunRayColor.b * 15.5) << 8);
+            dataToWrite1.g = int((0.5 + dot(sunPos, sunDir) / (1.5  * vxRange)) * 65535 + 0.5);
+            dataToWrite1.b = int((0.5 + dot(transPos.y > -9999 ? transPos : sunPos, sunDir) / (1.5  * vxRange)) * 65535 + 0.5);
         #endif
         int newOcclusionData = 0;
         // do occlusion checks at different zoom levels
