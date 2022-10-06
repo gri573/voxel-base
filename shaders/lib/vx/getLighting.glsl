@@ -188,7 +188,7 @@ vec3 getSunLight(vec3 vxPos, vec3 sunDir, vec3 normal) {
         vec4 sunData = texture2D(colortex10, (shadowPos.xy * shadowMapResolution + shadowoffsets[k] * 0.9) / tex8size0);
         sunData.yz = (sunData.yz - 0.5) * 1.5 * vxRange;
         int sunColor0 = int(texelFetch(colortex10, ivec2(shadowPos.xy * shadowMapResolution + shadowoffsets[k] * 0.9), 0).r * 65535 + 0.5);
-        vec3 sunColor1 = vec3(sunColor0 % 16, (sunColor0 >> 4) % 16, (sunColor0 >> 8) % 16) / 16.0;
+        vec3 sunColor1 = vec3(sunColor0 % 16, (sunColor0 >> 4) % 16, (sunColor0 >> 8) % 16)  * (sunColor0 >> 12) / 64.0 ;
         sunColor += shadowPos.z > sunData.y ? (shadowPos.z > sunData.z ? vec3(1) : sunColor1) : vec3(0.0);
     #if OCCLUSION_FILTER > 0
     }

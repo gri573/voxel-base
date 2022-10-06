@@ -70,11 +70,7 @@ vec4 handledata(vxData data, sampler2D atlas, inout vec3 pos, vec3 dir, int n) {
     vec4 color1 = valid1 ? texelFetch(atlas, ivec2(data.texcoord * atlasSize + (data.spritesize - 0.5) * (1 - p1.xy * 2)), 0) : vec4(0);
     color0.xyz *= data.emissive ? vec3(1) : data.lightcol;
     color1.xyz *= data.emissive ? vec3(1) : data.lightcol;
-    if (w0 < w1) {
-        pos = color0.a > 0.01 ? p0 : p1;
-    } else {
-        pos = color1.a > 0.01 ? p1 : p0;
-    }
+    pos += (valid0 ? w0 : (valid1 ? w1 : 0)) * dir;
     // the more distant intersection position only contributes by the amount of light coming through the closer one
     return (w0 < w1) ? (vec4(color0.xyz * color0.a, color0.a) + (1 - color0.a) * vec4(color1.xyz * color1.a, color1.a)) : (vec4(color1.xyz * color1.a, color1.a) + (1 - color1.a) * vec4(color0.xyz * color0.a, color0.a));
 }
