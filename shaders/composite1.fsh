@@ -55,8 +55,9 @@ void main() {
             vec4 sunRayColor = sunPos0.w < 0 ? raytrace(sunPos, sunMoonDir * sunPos0.w, transPos, colortex15, true) : vec4(0, 0, 0, 1);
             int transMat = transPos.y > -9999 ? readVxMap(transPos).mat : 0;
             // 31000 is water
-            sunRayColor.rgb = sunRayColor.rgb * sunRayColor.a  + 1.0 - sunRayColor.a;
-            float causticFactor = clamp(transMat == 31000 ? getCaustics(transPos + floor(cameraPosition)) * 10.0 : 1, 0.0, 3.9);
+            sunRayColor.a = sqrt(sunRayColor.a);
+            sunRayColor.rgb = sunRayColor.rgb * sunRayColor.a + 1.0 - sunRayColor.a;
+            float causticFactor = clamp(transMat == 31000 ? getCaustics(transPos + floor(cameraPosition)) * 5.0 : 1, 0.0, 3.9);
             sunRayColor.rgb *= sunRayColor.rgb / max(sunRayColor.r, max(sunRayColor.g, sunRayColor.b));
             sunRayColor.rgb = clamp(sunRayColor.rgb, vec3(0), vec3(1));
             dataToWrite1.r = int(sunRayColor.r * 15.5) + (int(sunRayColor.g * 15.5) << 4) + (int(sunRayColor.b * 15.5) << 8) + (int(causticFactor * 4.0) << 12);
