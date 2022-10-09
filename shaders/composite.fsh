@@ -54,7 +54,7 @@ void main() {
             changed = (prevchanged == 0) ? 0 : max(prevchanged - 1, 1); // need to update if voxel is new
         } else changed = 1;
         // newhash and mathash are hashes of the material ID, which change if the block at the given location changes, so it can be detected
-        int newhash =  blockData.mat > 0 ? blockData.mat / 4 % 255 + 1 : 0;
+        int newhash =  blockData.mat > 0 ? blockData.mat % 255 + 1 : 0;
         int mathash = previouslyInRange ? aroundData0[0].x >> 8 : 0;
         // if the material changed, then propagate that
         if (mathash != newhash) {
@@ -95,12 +95,12 @@ void main() {
                     //unpack and adjust light data
                     ivec4 thisLight = ivec4(theselights[i].x % 256, theselights[i].x >> 8, theselights[i].y % 256, theselights[i].y >> 8);
                     thisLight.xyz += offsets[k];
-                    thisLight.w -= 1;
+                    thisLight.w = (aroundData0[k].y >> i) % 2 == 1 ? thisLight.w - 1 : 0;
                     if (thisLight.w <= 0) break; // ignore light sources with zero intensity
                     bool newLight = true;
                     for (int j = 0; j < 3; j++) {
-                    // if there is a nearby light already registered, assume they are the same (nearness suffices in order to retain more diverse information)
-                        if (length(vec3(thisLight.xyz - sources[j].xyz)) < 0.2 * length(vec3(thisLight.xyz - 128)) + 0.01) {
+                    // check if light source is already registered
+                        if (length(vec3(thisLight.xyz - sources[j].xyz)) < 0.2) {
                             newLight = false;
                             if (j > 0 && sources[j-1].w < thisLight.w) {
                                 sources[j] = sources[j-1];

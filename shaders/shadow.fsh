@@ -12,6 +12,7 @@ flat in int mat;
 
 uniform sampler2D tex;
 uniform sampler2D shadowcolor1;
+uniform int isEyeInWater;
 uniform ivec2 atlasSize;
 uniform vec3 cameraPosition;
 uniform vec3 previousCameraPosition;
@@ -50,12 +51,13 @@ void main() {
         }
         avgbrightness /= 10.0;
         for (int i = 0; i < 10; i++) {
-            if (max(lightcols0[i].x, max(lightcols0[i].y, lightcols0[i].z)) > (avgbrightness + maxbrightness) * 0.5 && lightcols0[i].w > lightcol0.w) {
+            if (lightcols0[i].w > lightcol0.w && max(lightcols0[i].x, max(lightcols0[i].y, lightcols0[i].z)) > (avgbrightness + maxbrightness) * 0.5) {
                 lightcol0 = lightcols0[i];
             }
         }
         lightcol = lightcol0.rgb / max(max(lightcol0.r, lightcol0.g), lightcol0.b) * maxbrightness;
     }
+    if (emissive && isEyeInWater == 1) lightlevel = lightlevel * 4 / 3;
     if (!emissive) lightcol = vertexCol.rgb;
     ivec4 packedData0 = ivec4(
         int(lightcol.r * 255) + int(lightcol.g * 255) * 256,

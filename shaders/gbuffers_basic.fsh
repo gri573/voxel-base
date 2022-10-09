@@ -2,6 +2,7 @@
 
 #include "/lib/common.glsl"
 
+flat in int mat;
 in vec2 lmCoord;
 in vec2 texCoord;
 in vec3 worldPos;
@@ -39,12 +40,12 @@ void main() {
     vec3 sunVec = vec3(cos(dayTime), sunRotationData * sin(dayTime));
     sunVec *= sign(sunVec.y);
     float ndotl = dot(normal, sunVec);
-    vec3 blockLight = getBlockLight(vxPos, normal);
+    vec3 blockLight = getBlockLight(vxPos, normal, mat);
     vec3 ambientLight = 0.6 * lmCoord.y * fogColor + 0.2;
     vec3 sunLight;
     #ifdef SUN_SHADOWS
     if (isInRange(vxPosOld, 1)) {
-        sunLight = ndotl > 0 ? 0.7 * ndotl * vec3(1.0, 0.8, 0.7) * getSunLight(vxPosOld, sunVec, normal) : vec3(0);
+        sunLight = ndotl > 0 ? 0.7 * ndotl * vec3(1.0, 0.8, 0.7) * getSunLight(vxPosOld, false) : vec3(0);
     } else {
     #endif
         sunLight = ndotl > 0 ? 0.7 * ndotl * vec3(1.0, 0.8, 0.7) * clamp(lmCoord.y * 15 - 13.5, 0, 1) : vec3(0);

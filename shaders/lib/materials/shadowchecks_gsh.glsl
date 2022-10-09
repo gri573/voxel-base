@@ -4,6 +4,7 @@ switch (matV[0]) {
         else avgPos -= 0.05 * cnormal;
         break;
     case 31000:
+        zpos = 0.3 * zpos + 0.7;
     case 10068:
         if (area < 0.8) tracemat = false;
         break;
@@ -27,8 +28,11 @@ switch (matV[0]) {
         if (cnormal.y < 0.5) tracemat = false;
         //avgPos += vec3(0.0, 0.1, 0.0);
         break;
+    case 0:
+    case 10472:
     case 50016:
     case 50996:
+    case 60004:
         tracemat = false;
         break;
     default:

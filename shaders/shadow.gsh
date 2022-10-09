@@ -35,7 +35,7 @@ void main() {
     cnormal = normalize(cnormal);
     avgPos += fract(cameraPosition);
     bool tracemat = true;
-    float zpos = 0.5 - sqrt(area) - 0.02 * fract(avgPos.y + 0.01) - 0.01 * fract(avgPos.x + 0.01)- 0.15 * fract(avgPos.z + 0.01) - 0.2 * cnormal.y;
+    float zpos = 0.5 - sqrt(area) - 0.02 * fract(avgPos.y + 0.01) - 0.01 * fract(avgPos.x + 0.01)- 0.015 * fract(avgPos.z + 0.01) - 0.2 * cnormal.y;
     #include "/lib/materials/shadowchecks_gsh.glsl"
     if (max(abs(avgPos.x), abs(avgPos.z)) < vxRange / 2 && abs(avgPos.y) < VXHEIGHT * VXHEIGHT / 2 && tracemat) {
         vec2 coord = getVxCoords(avgPos);
