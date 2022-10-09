@@ -48,8 +48,11 @@ void main() {
         vec3 oldPos = pos + offset;
         // calculate a shadow map
         #ifdef SUN_SHADOWS
+            vec2 shadowCoord = 2.0 * vec2((pixelCoord.x + 0.5) / shadowMapResolution - 0.5, (pixelCoord.y + 0.5) / shadowMapResolution - 0.5);
+            float shadowLength = length(shadowCoord);//max(abs(shadowCoord.x), abs(shadowCoord.y));
+            shadowCoord *= undistortShadow(shadowLength) / shadowLength;
             vec3 sunMoonDir = sunDir * (sunDir.y > 0.0 ? 1.0 : -1.0);
-            vec3 topDownPos = 1.5 * vec3((pixelCoord.x + 0.5) / shadowMapResolution - 0.5, (pixelCoord.y + 0.5) / shadowMapResolution - 0.5, 0) * vxRange;
+            vec3 topDownPos = 0.75 * vec3(shadowCoord, 0) * vxRange;
             vec4 sunPos0 = getSunRayStartPos(topDownPos, sunMoonDir);
             vec3 sunPos = sunPos0.xyz;
             vec3 transPos = vec3(-10000); // translucent Position

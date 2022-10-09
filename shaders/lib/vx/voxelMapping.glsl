@@ -88,12 +88,19 @@ vec4 getSunRayStartPos(vec3 pos0, vec3 sunDir) {
     return vec4(pos + (w) * sunDir, otherW - w);
 }
 
+float distortShadow(float shadowLength) {
+    return sqrt(0.0030864197530864196 + shadowLength * 1.1111111111) - 0.0555555555;
+}
+float undistortShadow(float distortedLength) {
+    return 0.1 * distortedLength + 0.9 * distortedLength * distortedLength;
+}
+
 vec3 getShadowPos(vec3 vxPos, vec3 sunDir) {
     //vxPos -= vxPos.y / sunDir.y * sunDir;
-    return transpose(getRotMat(sunDir)) * vxPos / vec2(1.5 * vxRange, 1).xxy + vec2(0.5, 0).xxy;
+    return transpose(getRotMat(sunDir)) * vxPos / vec2(0.75 * vxRange, 1).xxy;// + vec2(0.5, 0).xxy;
 }
 vec3 getShadowPos(vec3 vxPos, mat3 sunRotMat) {
     //vxPos -= vxPos.y / sunDir.y * sunDir;
-    return transpose(sunRotMat) * vxPos / vec2(1.5 * vxRange, 1).xxy + vec2(0.5, 0).xxy;
+    return transpose(sunRotMat) * vxPos / vec2(0.75 * vxRange, 1).xxy;// + vec2(0.5, 0).xxy;
 }
 #endif

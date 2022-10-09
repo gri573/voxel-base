@@ -179,20 +179,34 @@ vec3 getWorldSunVector() {
     return vec3(cos(ang), sin(ang) * sunRotationData);
 }
 
+//x is solid, y is translucent, pos.xy are position on shadow map, pos.z is shadow depth
+vec2 sampleShadow(sampler2D shadowMap, vec3 pos) {
+    vec2 isInShadow = vec2(0);
+    vec2 floorPos = floor(pos.xy);
+    for (int k = 0; k < 4; k++) {
+        ivec2 offset = ivec2(k % 2, k / 2 % 2);
+        float intMult = (1 - abs(floorPos.x + offset.x - pos.x)) * (1 - abs(floorPos.y + offset.y - pos.y));
+        vec4 sunData = texelFetch(shadowMap, (floor(pos.xy) + offset), 0);
+    }
+    return isInShadow;
+}
+
 vec3 getSunLight(vec3 vxPos, bool causticMult) {
     vec3 sunDir = getWorldSunVector();
     sunDir *= sign(sunDir.y);
     vec2 tex8size0 = vec2(textureSize(colortex8, 0));
     vec3 shadowPos = getShadowPos(vxPos, sunDir);
+    float shadowLength = length(shadowPos.xy);//max(abs(shadowPos.x), abs(shadowPos.y));
+    shadowPos.xy *= distortShadow(shadowLength) / shadowLength;
     vec3 sunColor = vec3(0);
     #if OCCLUSION_FILTER > 0
     for (int k = 0; k < 9; k++) {
     #else
     int k = 0;
     #endif
-        vec4 sunData = texture2D(colortex10, (shadowPos.xy * shadowMapResolution + shadowoffsets[k] * 0.9) / tex8size0);
+        vec4 sunData = texture2D(colortex10, ((shadowPos.xy * 0.5 + 0.5) * shadowMapResolution + shadowoffsets[k] * 0.9) / tex8size0);
         sunData.yz = (sunData.yz - 0.5) * 1.5 * vxRange;
-        int sunColor0 = int(texelFetch(colortex10, ivec2(shadowPos.xy * shadowMapResolution + shadowoffsets[k] * 0.9), 0).r * 65535 + 0.5);
+        int sunColor0 = int(texelFetch(colortex10, ivec2((shadowPos.xy * 0.5 + 0.5) * shadowMapResolution + shadowoffsets[k] * 0.9), 0).r * 65535 + 0.5);
         vec3 sunColor1 = vec3(sunColor0 % 16, (sunColor0 >> 4) % 16, (sunColor0 >> 8) % 16) * (causticMult ? (sunColor0 >> 12) : 4.0) / 64.0;
         sunColor += shadowPos.z > sunData.y ? (shadowPos.z > sunData.z ? vec3(1) : sunColor1) : vec3(0.0);
     #if OCCLUSION_FILTER > 0
