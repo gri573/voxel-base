@@ -125,8 +125,9 @@ vec4 raytrace(bool lowDetail, inout vec3 pos0, vec3 dir, inout vec3 translucentH
                 }
             } else if (voxeldata.trace) {
                 vec4 newcolor = handledata(voxeldata, atlas, pos, dir, i);
-                if (voxeldata.mat == mat) newcolor.a = clamp(10.0 * newcolor.a - 9.0, 0.0, 1.0);
+                bool samemat = voxeldata.mat == mat;
                 mat = (newcolor.a > 0.1) ? voxeldata.mat : 0;
+                if (samemat) newcolor.a = clamp(10.0 * newcolor.a - 9.0, 0.0, 1.0);
                 raycolor.rgb += (1 - raycolor.a) * newcolor.a * newcolor.rgb;
                 raycolor.a += (1 - raycolor.a) * newcolor.a;
                 if (oldRayColor.a < 0.01 && raycolor.a > 0.01 && raycolor.a < 0.9) translucentHit = pos;
