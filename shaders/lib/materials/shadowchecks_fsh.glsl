@@ -22,6 +22,7 @@ notrace = (
     mat == 12264 ||
     mat == 12312 ||
     mat == 12480 ||
+    (mat >= 10596 && mat <= 10600) ||
     mat == 10544 ||
     mat == 12696 ||
     mat == 10732
@@ -94,7 +95,7 @@ emissive = (
     mat == 10564 ||
     (mat >= 10572 && mat < 10588) ||
     mat == 10592 ||
-    mat == 10596 ||
+    (mat >= 10596 && mat < 10600) ||
     mat == 12604 ||
     mat == 10612 ||
     mat == 10616 ||
@@ -169,6 +170,22 @@ if (emissive) {
         case 10564:
             lightlevel = 20;
             lightcol = vec3(0.5, 0.95, 1.0);
+            break;
+        case 10596:
+            lightlevel = 6;
+            lightcol = vec3(1.0, 0.1, 0.05);
+            break;
+        case 10597:
+            lightlevel = 7;
+            lightcol = vec3(1.0, 0.1, 0.05);
+            break;
+        case 10598:
+            lightlevel = 8;
+            lightcol = vec3(1.0, 0.1, 0.05);
+            break;
+        case 10599:
+            lightlevel = 9;
+            lightcol = vec3(1.0, 0.1, 0.05);
             break;
         case 30020:
         case 10400:
@@ -329,6 +346,7 @@ cuboid = (
     mat == 10129 ||
     mat == 10137 ||
     (mat > 10152 && mat < 10156) ||
+    mat == 12153 ||
     (mat > 10156 || mat < 10160) ||
     mat == 12157 ||
     (mat >= 14156 && mat < 14160) ||
@@ -529,6 +547,7 @@ if (cuboid) {
         case 10644:
             bounds[1].y = 3;
             break;
+        case 12153:
         case 10669:
             bounds[1].y = 1;
             break;
