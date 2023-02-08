@@ -1,7 +1,5 @@
-// calculate visibility of light sources
-
 #version 330 compatibility
-
+// calculate visibility of light sources
 #include "/lib/common.glsl"
 
 in vec2 texCoord;
@@ -11,18 +9,34 @@ uniform int frameCounter;
 uniform float frameTimeCounter;
 uniform vec3 cameraPosition;
 uniform vec3 previousCameraPosition;
+#ifndef SHADOWCOL0
+#define SHADOWCOL0
 uniform sampler2D shadowcolor0;
+#endif
+#ifndef SHADOWCOL1
+#define SHADOWCOL1
 uniform sampler2D shadowcolor1;
+#endif
+#ifndef COLORTEX8
+#define COLORTEX8
 uniform sampler2D colortex8;
+#endif
+#ifndef COLORTEX9
+#define COLORTEX9
 uniform sampler2D colortex9;
+#endif
 uniform sampler2D noisetex;
-#ifdef SUN_SHADOWS
+#ifndef COLORTEX10
+#define COLORTEX10
 uniform sampler2D colortex10;
 #endif
 uniform sampler2D colortex15; // texture atlas
 ivec2 atlasSize = textureSize(colortex15, 0);
 
-vec2 tex8size = vec2(textureSize(colortex8, 0));
+#if CAVE_SUNLIGHT_FIX >= 2
+uniform ivec2 eyeBrightness;
+uniform int isEyeInWater;
+#endif
 
 ivec3[7] offsets = ivec3[7](ivec3(0), ivec3(-1, 0, 0), ivec3(0, -1, 0), ivec3(0, 0, -1), ivec3(1, 0, 0), ivec3(0, 1, 0), ivec3(0, 0, 1));
 vec3[6] randomOffsets = vec3[6](vec3(0.64, -0.05, 0.46), vec3(0.39, -0.93, 0.92), vec3(-0.52, -0.42, -0.06), vec3(0.28, 0.11, 0.51), vec3(0.87, 0.6, 0.3), vec3(-0.15, 0.04, -0.97));
@@ -34,13 +48,34 @@ vec3[6] randomOffsets = vec3[6](vec3(0.64, -0.05, 0.46), vec3(0.39, -0.93, 0.92)
 
 void main() {
     ivec4 dataToWrite0;
-    ivec4 dataToWrite1;
-    ivec2 pixelCoord = ivec2(texCoord * tex8size);
+    ivec4 dataToWrite2;
+    ivec2 pixelCoord = ivec2(gl_FragCoord.xy);
     if (max(pixelCoord.x, pixelCoord.y) < shadowMapResolution) {
         dataToWrite0 = ivec4(texelFetch(colortex8, pixelCoord, 0) * 65535 + 0.5);
-        #ifdef SUN_SHADOWS
-        dataToWrite1 = ivec4(texelFetch(colortex10, pixelCoord, 0) * 65535 + 0.5);
-        #endif
+        dataToWrite2 = ivec4(texelFetch(colortex10, pixelCoord, 0) * 65535 + 0.5);
+        // height map
+        if (max(pixelCoord.x, pixelCoord.y) < vxRange) {
+            int height = VXHEIGHT * VXHEIGHT / 2 - 1;
+            for (; height > -VXHEIGHT * VXHEIGHT / 2; height--) {
+                vxData thisBlock = readVxMap(getVxPixelCoords(vec3(pixelCoord.x, height, pixelCoord.y) + vec3(-vxRange / 2.0 + 0.5, 0.5, -vxRange / 2.0 + 0.5)));
+                bool isGround = !(
+                    thisBlock.mat == 10160 ||
+                    thisBlock.mat == 10168 ||
+                    thisBlock.mat == 10176 ||
+                    thisBlock.mat == 10184 ||
+                    thisBlock.mat == 10192 ||
+                    thisBlock.mat == 10200 ||
+                    thisBlock.mat == 10208
+                );
+                if ((thisBlock.full && !thisBlock.alphatest && isGround)) {
+                    #if CAVE_SUNLIGHT_FIX >= 2
+                        if (eyeBrightness.y < 80 && isEyeInWater == 0 && thisBlock.skylight == 0) height = VXHEIGHT * VXHEIGHT / 2;
+                    #endif
+                    break;
+                }
+            }
+            dataToWrite2.w = (dataToWrite2.w >> 8 << 8) + clamp(height + (VXHEIGHT * VXHEIGHT / 2), 0, 255);
+        }
         vec3 pos0 = getVxPos(pixelCoord);
         vec3 pos = pos0;
         vec3 offset0 = floor(cameraPosition) - floor(previousCameraPosition);
@@ -59,17 +94,20 @@ void main() {
             vec4 sunRayColor = sunPos0.w < 0 ? raytrace(sunPos, sunMoonDir * sunPos0.w, transPos, colortex15, true) : vec4(0, 0, 0, 1);
             int transMat = transPos.y > -9999 ? readVxMap(transPos).mat : 0;
             // 31000 is water
-            sunRayColor.a = sqrt(sunRayColor.a);
-            sunRayColor.rgb = sunRayColor.rgb * sunRayColor.a + 1.0 - sunRayColor.a;
+            const float alphaSteepness = 5.0;
+            float colorMult = clamp(alphaSteepness - alphaSteepness * sunRayColor.a, 0, 1);
+            float mixFactor = clamp(alphaSteepness * sunRayColor.a, 0, 1);
+            sunRayColor.rgb = mix(vec3(1), sunRayColor.rgb * colorMult, mixFactor);
+            sunRayColor.rgb /= sqrt(max(max(sunRayColor.r, sunRayColor.g), max(sunRayColor.b, 0.0001)));
             // if the material is water, do caustics
             float causticFactor = clamp(transMat == 31000 ? getCaustics(transPos + floor(cameraPosition)) * 5.0 : 1, 0.0, 3.9);
-            sunRayColor.rgb *= sunRayColor.rgb / max(sunRayColor.r, max(sunRayColor.g, sunRayColor.b));
-            sunRayColor.rgb = clamp(sunRayColor.rgb, vec3(0), vec3(1));
+
             // pack shadow map data
-            dataToWrite1.r = int(sunRayColor.r * 15.5) + (int(sunRayColor.g * 15.5) << 4) + (int(sunRayColor.b * 15.5) << 8) + (int(causticFactor * 4.0) << 12);
-            dataToWrite1.g = int((0.5 + dot(sunPos, sunMoonDir) / (1.5  * vxRange)) * 65535 + 0.5);
-            dataToWrite1.b = int((0.5 + dot(transPos.y > -9999 ? transPos : sunPos, sunMoonDir) / (1.5  * vxRange)) * 65535 + 0.5);
+            dataToWrite2.r = int(sunRayColor.r * 15.5) + (int(sunRayColor.g * 15.5) << 4) + (int(sunRayColor.b * 15.5) << 8) + (int(causticFactor * 4.0) << 12);
+            dataToWrite2.g = int((0.5 + dot(sunPos, sunMoonDir) / (1.5  * vxRange)) * 65535 + 0.5);
+            dataToWrite2.b = int((0.5 + dot(transPos.y > -9999 ? transPos : sunPos, sunMoonDir) / (1.5  * vxRange)) * 65535 + 0.5);
         #endif
+        #if ADVANCED_LIGHT_TRACING > 0
         int newOcclusionData = 0;
         // do occlusion checks at different zoom levels
         for (int k = 0; k < OCCLUSION_CASCADE_COUNT; k++) {
@@ -81,7 +119,8 @@ void main() {
             if (k == 0 || doBlockLight || !isInRange(oldPos0)) {
                 ivec4 lightData0 = ivec4(texelFetch(colortex8, getVxPixelCoords(pos), 0) * 65535 + 0.5);
                 ivec4 lightData1 = ivec4(texelFetch(colortex9, getVxPixelCoords(pos), 0) * 65535 + 0.5);
-                int changed = isInRange(oldPos0) ? lightData0.x % 256 : 1;
+                int changed = lightData0.x % 256;
+                if (!isInRange(oldPos0)) changed = max(changed, 1);
                 if (changed > 0) {
                     occlusionData = 0;
                     // unpack light sources
@@ -93,18 +132,18 @@ void main() {
                     ivec3 intensities = ivec3(lightData0.w >> 8, lightData1.y >> 8, lightData1.w >> 8);
                     // check for each light source if it is occluded
                     for (int i = 0; i < 3; i++) {
-                    if (intensities[i] == 0) {
-                            occlusionData += 1 << i;
-                            continue;
+                        if (intensities[i] == 0) {
+                            for (int j = i; j < 3; j++) occlusionData += 1 << j;
+                            break;
                         }
                         vec3 lightDir = lights[i] - 127.5 - fract(pos);
                         vec3 endPos = pos;
                         vec3 goalPos = pos + lightDir;
-                        float rayAlpha = raytrace(k == 0, endPos, lightDir + 0.01 * randomOffsets[frameCounter % 6], colortex15, true).w;
+                        float rayAlpha = raytrace(endPos, lightDir + 0.01 * randomOffsets[frameCounter % 6], colortex15, true).w;
                         vxData endBlock = readVxMap(getVxPixelCoords(endPos));
                         vxData goalBlock = readVxMap(getVxPixelCoords(goalPos));
                         float dist = max(max(abs(endPos.x - goalPos.x), abs(endPos.y - goalPos.y)), abs(endPos.z - goalPos.z));
-                        if (dist < 0.512  + ((goalBlock.mat == endBlock.mat) ? 2.0 : 0.0)) {
+                        if (dist < 0.5 || (goalBlock.mat == endBlock.mat && dist < 2.5)) {
                             occlusionData += 1 << i;
                         }
                     }
@@ -120,11 +159,12 @@ void main() {
         }
         //write data
         dataToWrite0.y = newOcclusionData;
-    }
-    /*RENDERTARGETS:8*/
+        #endif
+	/*RENDERTARGETS:8,10*/
     gl_FragData[0] = vec4(dataToWrite0) / 65535.0;
-    #ifdef SUN_SHADOWS
-    /*RENDERTARGETS:8,10*/
-    gl_FragData[1] = vec4(dataToWrite1) / 65535.0;
-    #endif
+    gl_FragData[1] = vec4(dataToWrite2) / 65535.0;
+	return;
+    }
+	gl_FragData[0] = vec4(0);
+	gl_FragData[1] = vec4(0);
 }

@@ -1,7 +1,8 @@
 /*
 Shader options and very basic functions, nothing else
 */
-    const int shadowMapResolution = 1024; //[512 1024 2048 4096]
+    const int shadowMapResolution = 512; //[512 1024 2048 4096]
+    #define SHADOWRES shadowMapResolution
 
     #define VXHEIGHT 8 //[4 6 8 12 16]
 
@@ -13,10 +14,15 @@ Shader options and very basic functions, nothing else
     #define OCCLUSION_FILTER 1 //[0 1 2]
     #define SMOOTH_LIGHTING 1 //[0 1 2]
 
+    #define ADVANCED_LIGHT_TRACING 1
+
     #define SUN_SHADOWS
     #define SUN_ANGLE 0.5 //[-0.5 0 0.5]
     #define SUN_CHECK_SPREAD 3 //[2 3]
     #define BLOCKLIGHT_CHECK_INTERVAL 17 //[4 5 7 10 15 17 20 30]
+
+    #define TRANSLUCENT_LIGHT_TINT 0.5 //[0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0]
+    #define TRANSLUCENT_LIGHT_CONDUCTION 1.0
 
     #if (shadowMapResolution == 512)
         #if (VXHEIGHT == 4)
@@ -69,6 +75,7 @@ Shader options and very basic functions, nothing else
     #endif
 
 const float shadowDistanceRenderMul = 1.0;
+const float sunPathRotation = 0.0;
 
 /*
 const int shadowcolor0Format = RGBA16;
@@ -76,6 +83,7 @@ const int shadowcolor1Format = RGBA16;
 const int colortex8Format = RGBA16;
 const int colortex9Format = RGBA16;
 const int colortex10Format = RGBA16;
+const int colortex11Format = RGBA16;
 */
 
 const bool colortex8Clear = false;

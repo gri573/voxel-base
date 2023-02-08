@@ -6,12 +6,18 @@
 const int vxRange = 2 * (shadowMapResolution / (2 * VXHEIGHT));
 
 // convert 3D position in voxel space to 2D position on the voxel map
-ivec2 getVxPixelCoords(vec3 voxelPos) {
+ivec2 getVxPixelCoords(vec3 voxelPos, out bool clamped) {
     voxelPos.y += VXHEIGHT * VXHEIGHT / 2;
     ivec2 coords = ivec2(voxelPos.xz + vxRange / 2);
     coords.x += int(voxelPos.y) % VXHEIGHT * vxRange;
     coords.y += int(voxelPos.y) / VXHEIGHT * vxRange;
-    return coords;
+	ivec2 clampCoords = clamp(coords, ivec2(1, 0), ivec2(shadowMapResolution - 1));
+	clamped = (clampCoords != coords);
+    return clampCoords;
+}
+ivec2 getVxPixelCoords(vec3 voxelPos) {
+	bool clamped;
+	return getVxPixelCoords(voxelPos, clamped);
 }
 
 vec2 getVxCoords(vec3 voxelPos, vec2 size) {
@@ -50,7 +56,7 @@ vec3 getVxPos(vec3 worldPos) {
 
 // get previous voxel space position from world position
 vec3 getPreviousVxPos(vec3 worldPos) {
-    return worldPos + (cameraPosition - floor(previousCameraPosition));
+    return getVxPos(worldPos) + (floor(cameraPosition) - floor(previousCameraPosition));
 }
 
 // determine if a position is within the voxelisation range
@@ -90,6 +96,9 @@ vec4 getSunRayStartPos(vec3 pos0, vec3 sunDir) {
 
 float distortShadow(float shadowLength) {
     return sqrt(0.0030864197530864196 + shadowLength * 1.1111111111) - 0.0555555555;
+}
+float distortShadowDeriv(float shadowLength) {
+    return 0.555555555 / sqrt(0.0030864197530864196 + shadowLength * 1.1111111111);
 }
 float undistortShadow(float distortedLength) {
     return 0.1 * distortedLength + 0.9 * distortedLength * distortedLength;
