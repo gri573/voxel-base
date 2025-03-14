@@ -29,7 +29,7 @@ vec3 voxelRT(vec3 start, vec3 dir, out vec3 normal, out bool emissive) {
             int voxelDataOffset = 4 * (localCoord.x + 2 * localCoord.y + 4 * localCoord.z);
             int normalDir = int(dot(normal, vec3(0.5, 1.5, 2.5)));
             if ((thisVoxelData & (1u << normalDir | 1u << 3) << voxelDataOffset) != 0u) {
-                emissive = ((thisVoxelData & 1u << voxelDataOffset + 3) != 0)
+                emissive = ((thisVoxelData & 1u << voxelDataOffset + 3) != 0);
                 normal *= -dirSgn;
                 return thisPos;
             }
