@@ -22,6 +22,18 @@ float infnorm(vec3 x) {
     return max(max(abs(x.x), abs(x.y)), abs(x.z));
 }
 
+float hash11(int k) {
+    uint q = uint(k);
+    q *= M1;
+    q ^= q * M2;
+    q = q * (q ^ (q >> 15));
+    return q / float(0xffffffffu);
+}
+
+vec2 hash21(int k) {
+    return vec2(hash11(k), hash11(k*5281 + 621));
+}
+
 void main() {
     if (any(equal(ivec4(renderStage), ivec4(
             MC_RENDER_STAGE_TERRAIN_SOLID,
@@ -67,16 +79,26 @@ void main() {
                     vec2(0.5)
                 ))
             ) {
-                if (any(lessThan(normal, vec3(-0.5)))) {
-                    correspondingBlock += ivec3(1.5 * normal);
-                    normal = -normal;
-                    blockMod2 = correspondingBlock%2;
-                    voxelMapWriteOffset = 4 * (blockMod2.x + 2 * blockMod2.y + 4 * blockMod2.z);
-                    writeCoords = correspondingBlock/2;
-
+                bool isCutout = false;
+                for (int k = 0; k < 30; k++) {
+                    float thisAlpha = textureLod(tex, mix(texCoord, mc_midTexCoord, 2 * hash21(k)), 0).a;
+                    if (thisAlpha < 0.9) {
+                        isCutout = true;
+                        break;
+                    }
                 }
-                int axis = int(dot(normal, vec3(0.5, 1.5, 2.5)));
-                imageAtomicOr(voxelImg, writeCoords, 1u << uint(voxelMapWriteOffset + axis));
+                if (!isCutout) {
+                    if (any(lessThan(normal, vec3(-0.5)))) {
+                        correspondingBlock += ivec3(1.5 * normal);
+                        normal = -normal;
+                        blockMod2 = correspondingBlock%2;
+                        voxelMapWriteOffset = 4 * (blockMod2.x + 2 * blockMod2.y + 4 * blockMod2.z);
+                        writeCoords = correspondingBlock/2;
+
+                    }
+                    int axis = int(dot(normal, vec3(0.5, 1.5, 2.5)));
+                    imageAtomicOr(voxelImg, writeCoords, 1u << uint(voxelMapWriteOffset + axis));
+                }
             }
         }
     }
