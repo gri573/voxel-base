@@ -1,5 +1,5 @@
 # Voxel Base Shader
 
-Voxelisation and flood fill lighting with ray traced occlusion checks
+test shader for trying out new ways of doing voxelisation
 
 **not intended for actual gameplay**

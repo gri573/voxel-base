@@ -1,12 +1,13 @@
-#version 330 compatibility
+#version 430 compatibility
 
-#include "/lib/common.glsl"
+out vec3 worldDir;
 
-uniform sampler2D colortex8;
-out vec2 texCoord;
+uniform mat4 gbufferProjectionInverse;
+uniform mat4 gbufferModelViewInverse;
 
 void main() {
-    gl_Position = gl_ProjectionMatrix * (gl_ModelViewMatrix * gl_Vertex);
-    gl_Position.xy = (0.5 * gl_Position.xy + 0.5) * shadowMapResolution / vec2(textureSize(colortex8, 0)) * 2.0 - 1.0;
-    texCoord = 0.5 * gl_Position.xy + 0.5;
+    gl_Position = ftransform();
+    worldDir =
+        mat3(gbufferModelViewInverse) *
+        (gbufferProjectionInverse * gl_Position).xyz;
 }
