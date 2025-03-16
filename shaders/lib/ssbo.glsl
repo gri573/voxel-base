@@ -24,7 +24,7 @@ light_t unpackLightData(uvec4 packedLight) {
         packedLight.z & 0xffffu,
         packedLight.z >> 16,
         packedLight.w & 0xffffu
-    ) / (32.0 * instanceCount);
+    ) / (32.0 * instanceCount) - 1.0;
     return lightData;
 }
 

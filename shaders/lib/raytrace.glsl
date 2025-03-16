@@ -7,7 +7,8 @@
 #define MAX_RT_STEPS 2000
 
 // in voxel space (player space + cameraPositionFract)
-vec3 voxelRT(vec3 start, vec3 dir, out vec3 normal, out bool emissive) {
+vec3 voxelRT(vec3 start, vec3 dir, out vec3 normal, inout bool emissive) {
+    uint emissiveMask = uint(emissive) << 3;
     emissive = false;
 
     dir += 1e-10 * vec3(equal(dir, vec3(0)));
@@ -31,8 +32,8 @@ vec3 voxelRT(vec3 start, vec3 dir, out vec3 normal, out bool emissive) {
             ivec3 localCoord = thisCoord % 2;
             int voxelDataOffset = 4 * (localCoord.x + 2 * localCoord.y + 4 * localCoord.z);
             int normalDir = int(dot(normal, vec3(0.5, 1.5, 2.5)));
-            if ((thisVoxelData & (1u << normalDir | 1u << 3) << voxelDataOffset) != 0u) {
-                emissive = ((thisVoxelData & 1u << voxelDataOffset + 3) != 0);
+            if ((thisVoxelData & (1u << normalDir | emissiveMask) << voxelDataOffset) != 0u) {
+                emissive = ((thisVoxelData & emissiveMask << voxelDataOffset) != 0);
                 normal *= -dirSgn;
                 return thisPos;
             }
@@ -74,7 +75,7 @@ vec3 ssRT(vec3 start, vec3 dir) {
     vec3 screenVec = screenEnd.xyz - screenStart.xyz;
     float screenDist = infnorm(vec2(viewWidth, viewHeight) * screenVec.xy);
     vec3 screenPos = screenStart.xyz;
-    float stepSize = min(0.3, 10.0 / screenDist);
+    float stepSize = min(0.3, 5.0 / screenDist);
     float prevZDiff = 0.0;
     for (int k = 0; k < 100; k++) {
         if (clamp(screenPos, 0.0, 1.0) == screenPos) {
@@ -94,7 +95,7 @@ vec3 ssRT(vec3 start, vec3 dir) {
                     vec4 thisPlayerPos = gbufferModelViewInverse * gbufferProjectionInverse * vec4(screenPos * 2.0 - 1.0, 1.0);
                     return thisPlayerPos.xyz / thisPlayerPos.w + cameraPositionFract + VOXEL_DIST;
                 } else {
-                    stepSize = min(10.0 / screenDist, 0.3);
+                    stepSize = min(5.0 / screenDist, 0.3);
                     prevZDiff = 0.0;
                     screenPos += screenVec * stepSize;
                     continue;
@@ -109,12 +110,11 @@ vec3 ssRT(vec3 start, vec3 dir) {
 
 vec3 hybridRT(vec3 start, vec3 dir) {
     vec3 normal;
-    bool emissive;
-    vec3 hitPos = ssRT(start, dir);
-    if (length(hitPos - start) > length(dir)) {
-        hitPos = voxelRT(start, dir, normal, emissive);
-    }
-    return hitPos;
+    bool emissive = false;
+    vec3 ssHitPos = ssRT(start, dir);
+    vec3 vxHitPos = voxelRT(start, dir, normal, emissive);
+    if (length(ssHitPos - start) < length(vxHitPos - start)) return ssHitPos;
+    return vxHitPos;
 }
 
 #endif //INCLUDE_RAYTRACE

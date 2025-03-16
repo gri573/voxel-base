@@ -15,24 +15,16 @@ layout(r32ui) uniform readonly uimage3D voxelImg;
 
 #include "/lib/raytrace.glsl"
 
+/*
+const int colortex0Format = rgba16f;
+*/
+
 void main() {
     vec4 col = texelFetch(colortex0, ivec2(gl_FragCoord.xy), 0);
-    vec4 hitPos = gbufferProjection * gbufferModelView * vec4(hybridRT(
-        cameraPositionFract + gbufferModelViewInverse[3].xyz + 1.0 + VOXEL_DIST + normalize(worldDir),
-        50 * normalize(worldDir)
-    ) - cameraPositionFract - VOXEL_DIST, 1.0);
-    hitPos /= hitPos.w;
-    hitPos.xyz = 0.5 * hitPos.xyz + 0.5;
-    if (gl_FragCoord.x > 300) {
-        if (
-            hitPos.xyz == clamp(hitPos.xyz, 0.0, 1.0) &&
-            hitPos.z < 0.999 &&
-            abs(hitPos.z - textureLod(depthtex1, hitPos.xy, 0).r) < 0.001) {
-            col.rgb = texture(colortex0, hitPos.xy).rgb;
-        } else {
-            col.rgb = hitPos.xyz * (hitPos.z < 0.999 ? 1.0 : 0.3);
-        }
-    }
+    vec3 normal;
+    bool emissive = true;
+    //vec3 hitPos = voxelRT(cameraPositionFract + VOXEL_DIST, 50 * normalize(worldDir), normal, emissive);
+    //if (emissive) col.rgb = vec3(1, 0, 1);
     /* RENDERTARGETS:0 */
     gl_FragData[0] = col;
 }
