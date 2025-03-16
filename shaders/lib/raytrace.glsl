@@ -1,9 +1,12 @@
 #ifndef INCLUDE_RAYTRACE
 #define INCLUDE_RAYTRACE
 
+#include "/lib/common_functions.glsl"
+
 #include "/lib/voxel_settings.glsl"
 #define MAX_RT_STEPS 2000
 
+// in voxel space (player space + cameraPositionFract)
 vec3 voxelRT(vec3 start, vec3 dir, out vec3 normal, out bool emissive) {
     emissive = false;
 
@@ -39,4 +42,67 @@ vec3 voxelRT(vec3 start, vec3 dir, out vec3 normal, out bool emissive) {
     normal = -normalize(dir);
     return start + 2.0 * dir;
 }
+
+bool isEdge(vec2 pos) {
+    ivec2 coord = ivec2(pos * vec2(viewWidth, viewHeight));
+    float laplace = -4.0 * texelFetch(depthtex1, coord, 0).r;
+    vec2 grad = vec2(0.0);
+    for (int k = 0; k < 4; k++) {
+        ivec2 offset = (k/2*2-1) * ivec2(k%2, (k+1)%2);
+        float depthVal = texelFetch(depthtex1, coord + offset, 0).r;
+        laplace += depthVal;
+        grad += offset * depthVal;
+    }
+    return laplace > 0.1 * length(grad);
+}
+
+// also in voxel space
+vec3 ssRT(vec3 start, vec3 dir, out vec3 normal, out bool emissive) {
+    normal = vec3(0);
+    emissive = false;
+    vec3 playerStart = start - cameraPositionFract - VOXEL_DIST;
+    float startBehind = 0.5 + dot(playerStart, gbufferModelViewInverse[2].xyz);
+    if (startBehind > 0.0) {
+        playerStart -= min(0.0, startBehind / dot(dir, gbufferModelViewInverse[2].xyz)) * dir;
+    }
+    vec4 screenStart = gbufferProjection * gbufferModelView * vec4(playerStart, 1.0);
+    screenStart /= screenStart.w;
+    vec4 screenEnd = gbufferProjection * gbufferModelView * vec4(playerStart + dir, 1.0);
+    screenEnd /= screenEnd.w;
+    screenStart = 0.5 * screenStart + 0.5;
+    screenEnd = 0.5 * screenEnd + 0.5;
+
+    bool wasEverOnScreen = false;
+    vec3 screenVec = screenEnd.xyz - screenStart.xyz;
+    float screenDist = infnorm(vec2(viewWidth, viewHeight) * screenVec.xy);
+    vec3 screenPos = screenStart.xyz;
+    float stepSize = min(0.3, 10.0 / screenDist);
+    float prevZDiff = 0.0;
+    for (int k = 0; k < 100; k++) {
+        if (clamp(screenPos, 0.0, 1.0) == screenPos) {
+            wasEverOnScreen = true;
+        } else if (wasEverOnScreen) {
+            break;
+        }
+        float z = textureLod(depthtex1, screenPos.xy, 0).x;
+        if (prevZDiff * (z - screenPos.z) < 0.0) {
+            stepSize *= -0.5;
+            if (abs(stepSize) < 0.5 / screenDist) {
+                if (!isEdge(screenPos.xy) && abs(screenPos.z - screenStart.z) < abs(screenVec.z)) {
+                    vec4 thisPlayerPos = gbufferModelViewInverse * gbufferProjectionInverse * vec4(screenPos * 2.0 - 1.0, 1.0);
+                    return screenPos;//thisPlayerPos.xyz / thisPlayerPos.w + cameraPositionFract + VOXEL_DIST;
+                } else {
+                    stepSize = min(10.0 / screenDist, 0.3);
+                    prevZDiff = 0.0;
+                    screenPos += screenVec * stepSize;
+                    continue;
+                }
+            }
+        }
+        prevZDiff = z - screenPos.z;
+        screenPos += screenVec * stepSize;
+    }
+    return start + 2 * dir;
+}
+
 #endif //INCLUDE_RAYTRACE

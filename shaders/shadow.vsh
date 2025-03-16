@@ -2,7 +2,9 @@
 
 layout(r32ui) uniform uimage3D voxelImg;
 
-#include "/lib/voxel_settings.glsl
+#include "/lib/voxel_settings.glsl"
+
+#include "/lib/common_functions.glsl"
 
 #define WRITE_LIGHTS
 #include "/lib/ssbo.glsl"
@@ -17,10 +19,6 @@ uniform sampler2D tex;
 in vec2 mc_midTexCoord;
 in vec4 at_midBlock;
 in vec4 mc_Entity;
-
-float infnorm(vec3 x) {
-    return max(max(abs(x.x), abs(x.y)), abs(x.z));
-}
 
 float hash11(int k) {
     uint q = uint(k);
