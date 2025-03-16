@@ -57,9 +57,7 @@ bool isEdge(vec2 pos) {
 }
 
 // also in voxel space
-vec3 ssRT(vec3 start, vec3 dir, out vec3 normal, out bool emissive) {
-    normal = vec3(0);
-    emissive = false;
+vec3 ssRT(vec3 start, vec3 dir) {
     vec3 playerStart = start - cameraPositionFract - VOXEL_DIST;
     float startBehind = 0.5 + dot(playerStart, gbufferModelViewInverse[2].xyz);
     if (startBehind > 0.0) {
@@ -86,11 +84,15 @@ vec3 ssRT(vec3 start, vec3 dir, out vec3 normal, out bool emissive) {
         }
         float z = textureLod(depthtex1, screenPos.xy, 0).x;
         if (prevZDiff * (z - screenPos.z) < 0.0) {
-            stepSize *= -0.5;
-            if (abs(stepSize) < 0.5 / screenDist) {
-                if (!isEdge(screenPos.xy) && abs(screenPos.z - screenStart.z) < abs(screenVec.z)) {
+            stepSize *= -0.3;
+            if (abs(stepSize) < 0.25 / screenDist) {
+                if (
+                    !isEdge(screenPos.xy) &&
+                    abs(z - screenStart.z) < abs(screenVec.z) &&
+                    abs(z - screenPos.z) < 0.001
+                ) {
                     vec4 thisPlayerPos = gbufferModelViewInverse * gbufferProjectionInverse * vec4(screenPos * 2.0 - 1.0, 1.0);
-                    return screenPos;//thisPlayerPos.xyz / thisPlayerPos.w + cameraPositionFract + VOXEL_DIST;
+                    return thisPlayerPos.xyz / thisPlayerPos.w + cameraPositionFract + VOXEL_DIST;
                 } else {
                     stepSize = min(10.0 / screenDist, 0.3);
                     prevZDiff = 0.0;
@@ -99,10 +101,20 @@ vec3 ssRT(vec3 start, vec3 dir, out vec3 normal, out bool emissive) {
                 }
             }
         }
-        prevZDiff = z - screenPos.z;
+        if (wasEverOnScreen) prevZDiff = z - screenPos.z;
         screenPos += screenVec * stepSize;
     }
     return start + 2 * dir;
+}
+
+vec3 hybridRT(vec3 start, vec3 dir) {
+    vec3 normal;
+    bool emissive;
+    vec3 hitPos = ssRT(start, dir);
+    if (length(hitPos - start) > length(dir)) {
+        hitPos = voxelRT(start, dir, normal, emissive);
+    }
+    return hitPos;
 }
 
 #endif //INCLUDE_RAYTRACE
