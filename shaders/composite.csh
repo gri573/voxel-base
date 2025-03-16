@@ -78,7 +78,7 @@ void main() {
             float ndotl = dot(normal, lightDir);
             float dirLen = length(lightDir) - 0.5;
             if (ndotl > 0.0 && dirLen < 30) {
-                lightDir += randomSphereSample() * 0.3;
+                lightDir += randomSphereSample() * 0.1;
                 vec3 hitPos = hybridRT(voxelPos, lightDir);
                 if (length(hitPos - voxelPos) >= dirLen) {
                     blockLight += light.col * ndotl * 2.0 / (dirLen * dirLen + 0.1);
