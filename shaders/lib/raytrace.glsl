@@ -111,10 +111,10 @@ vec3 ssRT(vec3 start, vec3 dir) {
 vec3 hybridRT(vec3 start, vec3 dir) {
     vec3 normal;
     bool emissive = false;
-    vec3 ssHitPos = ssRT(start, dir);
-    vec3 vxHitPos = voxelRT(start, dir, normal, emissive);
-    if (length(ssHitPos - start) < length(vxHitPos - start)) return ssHitPos;
-    return vxHitPos;
+    vec3 hitPos = ssRT(start, dir);
+    if (length(hitPos - start) > length(dir))
+        hitPos = voxelRT(start, dir, normal, emissive);
+    return hitPos;
 }
 
 #endif //INCLUDE_RAYTRACE
