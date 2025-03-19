@@ -6,6 +6,9 @@
 #include "/lib/voxel_settings.glsl"
 #define MAX_RT_STEPS 2000
 
+mat4 projModView = gbufferProjection * gbufferModelView;
+mat4 projModViewInv = gbufferModelViewInverse * gbufferProjectionInverse;
+
 // in voxel space (player space + cameraPositionFract)
 vec3 voxelRT(vec3 start, vec3 dir, out vec3 normal, inout bool emissive) {
     uint emissiveMask = uint(emissive) << 3;
@@ -57,30 +60,63 @@ bool isEdge(vec2 pos) {
     return laplace > 0.1 * length(grad);
 }
 
+vec3 coarseSSRT(vec3 start, vec3 dir, float dither) {
+    const int stepCount = 10;
+    for (int k = 0; k < stepCount; k++) {
+        vec3 thisPos = start + (k + dither) * (1.0/stepCount) * dir;
+        if (thisPos != clamp(thisPos, 0.0, 1.0)) break;
+        float depthLeniency = 3.0 * (1.0 - thisPos.z) * (1.0 - thisPos.z);
+        float z = textureLod(depthtex1, thisPos.xy, 0).r;
+        if (
+            (
+                //(thisPos.z - z) * (start.z + max(k - 1 + dither, 0.0) * (1.0/stepCount) * dir.z - z) < 0.0 ||
+                abs(thisPos.z - z - 0.8 * depthLeniency) < depthLeniency
+            ) && !isEdge(thisPos.xy)
+        ) {
+            return vec3(thisPos.xy, z);
+        }
+    }
+    return start + 20 * dir;
+}
+
 // also in voxel space
 vec3 ssRT(vec3 start, vec3 dir, out vec3 normal) {
+    normal = vec3(0);
+    float dither = nextFloat();
     vec3 dir0 = dir;
     vec3 playerStart = start - cameraPositionFract - VOXEL_DIST;
+    float linearDepthTraversal = dot(dir, gbufferModelViewInverse[2].xyz);
     float startBehind = 0.5 + dot(playerStart, gbufferModelViewInverse[2].xyz);
     if (startBehind > 0.0) {
-        float offsetAmount = max(0.0, -startBehind / dot(dir, gbufferModelViewInverse[2].xyz));
+        float offsetAmount = max(0.0, -startBehind / linearDepthTraversal);
         playerStart += offsetAmount * dir;
         dir *= 1.0 - offsetAmount;
+        linearDepthTraversal *= 1.0 - offsetAmount;
     }
-    float endBehind = 0.5 + dot(playerStart + dir, gbufferModelViewInverse[2].xyz);
+    float endBehind = startBehind + linearDepthTraversal;
     if (endBehind > 0.0) {
-        float offsetAmount = max(0.0, endBehind / dot(dir, gbufferModelViewInverse[2].xyz));
+        float offsetAmount = max(0.0, endBehind / linearDepthTraversal);
         dir *= 1.0 - offsetAmount;
     }
-    vec4 screenStart = gbufferProjection * gbufferModelView * vec4(playerStart, 1.0);
+    vec4 screenStart = projModView * vec4(playerStart, 1.0);
     screenStart /= screenStart.w;
-    vec4 screenEnd = gbufferProjection * gbufferModelView * vec4(playerStart + dir, 1.0);
+    vec4 screenEnd = projModView * vec4(playerStart + dir, 1.0);
     screenEnd /= screenEnd.w;
-    screenStart = 0.5 * screenStart + 0.5;
-    screenEnd = 0.5 * screenEnd + 0.5;
+    screenStart.xyz = 0.5 * screenStart.xyz + 0.5;
+    screenEnd.xyz = 0.5 * screenEnd.xyz + 0.5;
+    vec3 screenVec = screenEnd.xyz - screenStart.xyz;
+
+    #ifndef FINE_SSRT
+        vec3 screenHit = coarseSSRT(screenStart.xyz, screenVec, dither);
+        normal = texture(colortex1, screenHit.xy).rgb * 2.0 - 1.0;
+        vec4 playerHit = projModViewInv * vec4(screenHit * 2.0 - 1.0, 1.0);
+        if (abs(screenHit.x - screenStart.x) > abs(screenVec.x)) {
+            return start + 2 * dir0;
+        }
+        return playerHit.xyz / playerHit.w + cameraPositionFract + VOXEL_DIST;
+    #endif
 
     bool wasEverOnScreen = false;
-    vec3 screenVec = screenEnd.xyz - screenStart.xyz;
     screenVec /= infnorm(vec2(viewWidth, viewHeight) * screenVec.xy);
     vec3 screenPos = screenStart.xyz;
     const int maxLodLevel = 7;
@@ -93,7 +129,7 @@ vec3 ssRT(vec3 start, vec3 dir, out vec3 normal) {
         }
         if (wasEverOnScreen) {
             bool reducedLodLevel = false;
-            while (lodLevel >= 1) {
+            while (lodLevel >= 2) {
                 float nextZ = screenPos.z + screenVec.z * (1<<lodLevel);
                 ivec2 lodCoord =
                     (ivec2(screenPos.xy * vec2(viewWidth, viewHeight)) >> lodLevel) +
@@ -111,7 +147,7 @@ vec3 ssRT(vec3 start, vec3 dir, out vec3 normal) {
             }
             if (!reducedLodLevel && k%7 == 3) {
                 while (lodLevel < maxLodLevel-1) {
-                    lodLevel += 2;
+                    lodLevel++;
                     float nextZ = screenPos.z + screenVec.z * (1<<lodLevel);
                     ivec2 lodCoord =
                         (ivec2(screenPos.xy * vec2(viewWidth, viewHeight)) >> lodLevel) +
@@ -121,19 +157,19 @@ vec3 ssRT(vec3 start, vec3 dir, out vec3 normal) {
                         zrange.x < max(nextZ, screenPos.z) &&
                         zrange.y > min(nextZ, screenPos.z)
                     ) {
-                        lodLevel -= 2;
+                        lodLevel--;
                         break;
                     }
                 }
             }
-            if (lodLevel < 1) {
+            if (lodLevel < 2) {
+                screenPos += dither * (1<<lodLevel) * screenVec;
                 float leniency = 0.4 * ((1.0 - screenPos.z) * (1.0 - screenPos.z));
                 float thisZDiff = textureLod(depthtex1, screenPos.xy, 0).r + 0.3 * leniency - screenPos.z;
                 if (abs(thisZDiff) < leniency) {
                     normal = texture(colortex1, screenPos.xy).rgb * 2.0 - 1.0;
                     vec4 playerPos =
-                        gbufferModelViewInverse *
-                        gbufferProjectionInverse *
+                        projModViewInv *
                         (vec4(screenPos, 1.0) * 2.0 - 1.0);
                     return playerPos.xyz / playerPos.w + cameraPositionFract + VOXEL_DIST;
                 }
@@ -148,7 +184,7 @@ vec3 hybridRT(vec3 start, vec3 dir) {
     vec3 normal;
     bool emissive = false;
     vec3 hitPos = ssRT(start, dir, normal);
-    if (length(hitPos - start) > length(dir))
+    if (false && length(hitPos - start) > length(dir))
         hitPos = voxelRT(start, dir, normal, emissive);
     else
         hitPos -= 0.1 * normal;

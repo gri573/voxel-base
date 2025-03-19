@@ -4,7 +4,7 @@ uniform sampler2D colortex0;
 
 /*
 const int colortex0Format = rgba16f;
-const int colortex2Format = rg32f;
+const int colortex2Format = rg16;
 */
 
 void main() {

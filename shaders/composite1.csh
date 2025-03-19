@@ -2,7 +2,7 @@
 
 const vec2 workGroupsRender = vec2(1.0, 1.0);
 
-layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 
 layout(r32ui) uniform uimage3D voxelImg;
 #include "/lib/ssbo.glsl"
@@ -19,8 +19,8 @@ uniform sampler2D colortex1;
 uniform sampler2D colortex2;
 uniform sampler2D depthtex1;
 
-#include "/lib/raytrace.glsl"
 #include "/lib/random.glsl"
+#include "/lib/raytrace.glsl"
 
 shared uint lightLocs[128];
 shared uint lightHashMap[128];
@@ -45,7 +45,7 @@ void main() {
     vec4 playerPos = gbufferModelViewInverse * gbufferProjectionInverse * (screenPos * 2.0 - 1.0);
     playerPos /= playerPos.w;
     vec3 voxelPos = playerPos.xyz + cameraPositionFract + VOXEL_DIST;
-    vec3 biasedVoxelPos = voxelPos + 0.1 * normal;
+    vec3 biasedVoxelPos = voxelPos + 0.03 * normal;
     if (screenPos.z < 0.9999) {
         vec3 dir = randomCosineWeightedHemisphereSample(normal);
         vec3 hitNormal;
@@ -81,13 +81,16 @@ void main() {
             float dirLen = length(lightDir);
             if (ndotl > 0.0 && dirLen < 30) {
                 vec3 lightPos = voxelPos + lightDir;
-                lightDir += randomSphereSample() * 0.1;
-                vec3 hitPos = hybridRT(biasedVoxelPos, lightPos - biasedVoxelPos);
+                vec3 rtDir = lightPos + randomSphereSample() * 0.1 - biasedVoxelPos;
+                vec3 hitPos = hybridRT(biasedVoxelPos, rtDir);
                 if (
                     floor(mix(hitPos, lightPos, 0.05)) == floor(lightPos) ||
                     length(hitPos - voxelPos) >= dirLen - 0.5
                 ) {
                     blockLight += light.col * ndotl * 2.0 / (dirLen * dirLen + 0.1);
+                }
+                if (!(hitPos == hitPos)) {
+                    blockLight = vec3(1.0, 0.0, 1.0);
                 }
             }
         }

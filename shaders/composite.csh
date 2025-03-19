@@ -1,5 +1,7 @@
 #version 430
 
+#include "/lib/voxel_settings.glsl"
+#ifdef FINE_SSRT
 const vec2 workGroupsRender = vec2(0.25, 0.25);
 layout(local_size_x = 32, local_size_y = 32) in;
 
@@ -7,8 +9,12 @@ uniform sampler2D depthtex1;
 layout(rg32f) uniform image2D colorimg2;
 
 shared vec2[32][32] sharedDepth;
-
+#else // FINE_SSRT
+const ivec3 workGroups = ivec3(1, 1, 1);
+layout(local_size_x = 1) in;
+#endif // FINE_SSRT
 void main() {
+    #ifdef FINE_SSRT
     ivec2 viewSize = imageSize(colorimg2);
     ivec2 coord = ivec2(gl_GlobalInvocationID.xy);
     // first pass
@@ -178,4 +184,5 @@ void main() {
             imageStore(colorimg2, writeCoord, vec4(thisThreadDepth, 0.0, 1.0));
         }
     }
+    #endif //FINE_SSRT
 }
