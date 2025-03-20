@@ -22,7 +22,7 @@ uniform sampler2D depthtex1;
 #include "/lib/random.glsl"
 #include "/lib/raytrace.glsl"
 
-shared uint lightLocs[128];
+shared uint lightLocs[MAX_LIGHT_COUNT];
 shared uint lightHashMap[128];
 
 shared int lightCount;
@@ -35,7 +35,7 @@ void main() {
     if (index == 0) {
         lightCount = 0;
     }
-    if (index < 128) {
+    if (index < MAX_LIGHT_COUNT) {
         lightHashMap[index] = 0u;
     }
     memoryBarrierShared();
@@ -57,7 +57,7 @@ void main() {
             uint hitHash = posHash(hitCoords) % (128 * 32);
             if ((atomicOr(lightHashMap[hitHash/32], 1u<<hitHash%32) & 1u<<hitHash%32) == 0) {
                 int lightIndex = atomicAdd(lightCount, 1);
-                if (lightIndex < 128) {
+                if (lightIndex < MAX_LIGHT_COUNT) {
                     uint packedPos = hitCoords.x | hitCoords.y << 11 | hitCoords.z << 21;
                     lightLocs[lightIndex] = packedPos;
                 }
@@ -68,7 +68,7 @@ void main() {
     barrier();
     vec3 blockLight = vec3(0.0);
     if (screenPos.z < 0.9999) {
-        for (int k = 0; k < min(128, lightCount); k++) {
+        for (int k = 0; k < min(MAX_LIGHT_COUNT, lightCount); k++) {
             ivec3 lightCoords = ivec3(
                 lightLocs[k]     & (1u<<11)-1,
                 lightLocs[k]>>11 & (1u<<10)-1,

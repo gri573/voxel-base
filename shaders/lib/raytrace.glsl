@@ -5,6 +5,7 @@
 
 #include "/lib/voxel_settings.glsl"
 #define MAX_RT_STEPS 2000
+//#define DO_VOXEL_RT
 
 mat4 projModView = gbufferProjection * gbufferModelView;
 mat4 projModViewInv = gbufferModelViewInverse * gbufferProjectionInverse;
@@ -184,9 +185,11 @@ vec3 hybridRT(vec3 start, vec3 dir) {
     vec3 normal;
     bool emissive = false;
     vec3 hitPos = ssRT(start, dir, normal);
-    if (false && length(hitPos - start) > length(dir))
+    #ifdef DO_VOXEL_RT
+    if (length(hitPos - start) > length(dir))
         hitPos = voxelRT(start, dir, normal, emissive);
     else
+    #endif //DO_VOXEL_RT
         hitPos -= 0.1 * normal;
     return hitPos;
 }
