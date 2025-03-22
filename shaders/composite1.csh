@@ -73,7 +73,7 @@ void main() {
         ivec2 lightReadCoord =
             writeCoord +
             int(lightReadIndex != 0) *
-            (lightReadIndex/2*2-1) *
+            ((lightReadIndex-1)/2*2-1) *
             ((lightReadIndex + ivec2(0, 1))%2) *
             ivec2(gl_WorkGroupSize.xy);
         if (
