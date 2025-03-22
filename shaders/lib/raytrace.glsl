@@ -85,16 +85,16 @@ vec3 ssRT(vec3 start, vec3 dir, out vec3 normal) {
     vec3 dir0 = dir;
     vec3 playerStart = start - cameraPositionFract - VOXEL_DIST;
     float linearDepthTraversal = dot(dir, gbufferModelViewInverse[2].xyz);
-    float startBehind = 0.5 + dot(playerStart, gbufferModelViewInverse[2].xyz);
+    float startBehind = 0.1 + dot(playerStart, gbufferModelViewInverse[2].xyz);
     if (startBehind > 0.0) {
-        float offsetAmount = max(0.0, -startBehind / linearDepthTraversal);
+        float offsetAmount = min(max(0.0, -startBehind / linearDepthTraversal), 0.9);
         playerStart += offsetAmount * dir;
         dir *= 1.0 - offsetAmount;
         linearDepthTraversal *= 1.0 - offsetAmount;
     }
     float endBehind = startBehind + linearDepthTraversal;
     if (endBehind > 0.0) {
-        float offsetAmount = max(0.0, endBehind / linearDepthTraversal);
+        float offsetAmount = min(max(0.0, endBehind / linearDepthTraversal), 0.9);
         dir *= 1.0 - offsetAmount;
     }
     
