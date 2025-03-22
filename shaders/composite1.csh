@@ -27,19 +27,16 @@ uniform sampler2D depthtex1;
 #include "/lib/raytrace.glsl"
 
 shared uint lightLocs[MAX_LIGHT_COUNT];
-shared uint lightVisibilities[MAX_LIGHT_COUNT/32];
+shared uint lightVisibilities[MAX_LIGHT_COUNT];
 shared uint lightHashMap[128];
 shared vec3 cornerVoxelPos[4];
 shared vec3 cornerNormal[4];
 
 shared int lightCount;
+shared uint totalLightVisibility;
 
 void main() {
     generateSeed(ivec2(gl_GlobalInvocationID.xy), frameCounter);
-
-    memoryBarrierShared();
-    barrier();
-
     ivec2 writeCoord = ivec2(gl_GlobalInvocationID.xy);
     ivec2 screenCoord = ivec2(writeCoord / workGroupsRender + 0.5);
     int index = int(gl_LocalInvocationIndex);
@@ -63,11 +60,10 @@ void main() {
     }
     if (index == 0) {
         lightCount = 0;
+        totalLightVisibility;
     }
     if (index < MAX_LIGHT_COUNT) {
         lightHashMap[index] = 0u;
-    }
-    if (index < MAX_LIGHT_COUNT/32) {
         lightVisibilities[index] = 0u;
     }
     memoryBarrierShared();
@@ -176,8 +172,10 @@ void main() {
                     length(hitPos - voxelPos) >= dirLen - 0.5
                 );
                 if (visible) {
-                    blockLight += light.col * light.brightness * ndotl * 2.0 / (dirLen * dirLen + 0.1);
-                    atomicOr(lightVisibilities[k/32], 1u<<k%32);
+                    vec3 thisLight = light.col * light.brightness * ndotl * 2.0 / (dirLen * dirLen + 0.1);
+                    blockLight += thisLight;
+                    atomicAdd(lightVisibilities[k], int(100.0 * length(thisLight)));
+                    atomicAdd(totalLightVisibility, int(100.0 * length(thisLight)));
                 }
                 if (!(hitPos == hitPos)) {
                     blockLight = vec3(1.0, 0.0, 1.0);
@@ -193,7 +191,8 @@ void main() {
     memoryBarrierShared();
     barrier();
     uint lightToStore = 0u;
-    if (index < min(lightCount, MAX_LIGHT_COUNT) && (lightVisibilities[index/32] & 1u<<index%32) != 0u) {
+    float visibilityFactor = LIGHT_RETENTION_RATE * float(lightVisibilities[index]) / float(totalLightVisibility);
+    if (index < min(lightCount, MAX_LIGHT_COUNT) && nextFloat() < visibilityFactor) {
         lightToStore = lightLocs[index];
     }
     imageStore(colorimg3, writeCoord, uvec4(lightToStore));
