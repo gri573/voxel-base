@@ -58,7 +58,7 @@ void main() {
         cornerNormal[index] = texelFetch(colortex1, screenCoord, 0).xyz * 2.0 - 1.0;
         vec4 cornerPlayerPos = gbufferModelViewInverse * gbufferProjectionInverse * (cornerScreenPos * 2.0 - 1.0);
         cornerPlayerPos /= cornerPlayerPos.w;
-        cornerVoxelPos[index] = cornerPlayerPos.xyz + cameraPositionFract + VOXEL_DIST + 0.05 * cornerNormal[index];
+        cornerVoxelPos[index] = cornerPlayerPos.xyz + cameraPositionFract + VOXEL_DIST + 0.1 * cornerNormal[index];
 
     }
     if (index == 0) {
@@ -100,26 +100,26 @@ void main() {
             (lightHashMap[lightHash/32] & 1<<lightHash%32) != 0 ||
             (imageLoad(voxelImg, prevLightPos/2).r & (1u<<bitOffset)) == 0u
         ) continue;
-        light_t unpackedPrevLight = unpackLightData(lightArray[posHash(prevLightPos)%1000000]);
+        light_t unpackedPrevLight = unpackLightData(lightArray[posHash(prevLightPos)%1000000u]);
         vec3 lightPos = prevLightPos + unpackedPrevLight.relPos - 1.0;
         bool visible = false;
         for (int cornerIndex = 0; cornerIndex < 4; cornerIndex++) {
             vec3 thisVxPos = cornerVoxelPos[cornerIndex];
             if (
                 thisVxPos == clamp(thisVxPos, 0.0, 2.0 * VOXEL_DIST) &&
-                dot(lightPos - thisVxPos, cornerNormal[cornerIndex]) > -0.5
+                dot(lightPos - thisVxPos, cornerNormal[cornerIndex]) > -1000.5
             ) {
-                vec3 hitNormal;
-                bool hitEmission = false;
                 vec3 hitPos = hybridRT(thisVxPos, lightPos - thisVxPos);
-                if (dot(normalize(lightPos - thisVxPos), hitPos - lightPos) > -2.0) {
+                if (length(hitPos - thisVxPos) > length(lightPos - thisVxPos) - 100.5) {
                     visible = true;
                     break;
                 }
+            } else {
+                imageStore(colorimg0, writeCoord, vec4(1, 0, 1, 1));
             }
         }
         if (visible) {
-            if ((atomicOr(lightHashMap[lightHash/32], 1u<<lightHash%32) & 1<<lightHash%32) == 0u) {
+            if ((atomicOr(lightHashMap[lightHash/32], 1u<<lightHash%32) & 1u<<lightHash%32) == 0u) {
                 int lightIndex = atomicAdd(lightCount, 1);
                 if (lightIndex < MAX_LIGHT_COUNT) {
                     uint offsetPrevLight =
@@ -131,7 +131,7 @@ void main() {
             }
         }
     }
-    if (screenPos.z < 0.9999) {
+    if (nextFloat() > 0.99 && screenPos.z < 0.9999) {
         vec3 dir = randomCosineWeightedHemisphereSample(normal);
         vec3 hitNormal;
         bool hitEmission = true;

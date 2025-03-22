@@ -141,10 +141,15 @@ vec3 hybridRT(vec3 start, vec3 dir) {
     bool emissive = false;
     vec3 hitPos = ssRT(start, dir, normal);
     #ifdef DO_VOXEL_RT
-    if (length(hitPos - start) > length(dir))
-        hitPos = voxelRT(start, dir, normal, emissive);
+    if (
+        length(hitPos - start) > length(dir) ||
+        floor(hitPos - 0.1 * normal) == floor(start + dir)
+    ) hitPos = voxelRT(start, dir, normal, emissive);
     #endif //DO_VOXEL_RT
     hitPos -= 0.1 * normal;
+    if (any(isnan(hitPos)) || dot(hitPos - start, dir) < -0.5) {
+        hitPos = start + 2 * dir;
+    }
     return hitPos;
 }
 
