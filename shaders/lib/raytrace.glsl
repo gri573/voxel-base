@@ -69,10 +69,8 @@ vec3 coarseSSRT(vec3 start, vec3 dir, float dither) {
         float depthLeniency = 3.0 * (1.0 - thisPos.z) * (1.0 - thisPos.z);
         float z = textureLod(depthtex1, thisPos.xy, 0).r;
         if (
-            (
-                //(thisPos.z - z) * (start.z + max(k - 1 + dither, 0.0) * (1.0/stepCount) * dir.z - z) < 0.0 ||
-                abs(thisPos.z - z - 0.8 * depthLeniency) < depthLeniency
-            ) && !isEdge(thisPos.xy)
+            abs(thisPos.z - z - 0.8 * depthLeniency) < depthLeniency &&
+            !isEdge(thisPos.xy)
         ) {
             return vec3(thisPos.xy, z);
         }
@@ -99,86 +97,43 @@ vec3 ssRT(vec3 start, vec3 dir, out vec3 normal) {
         float offsetAmount = max(0.0, endBehind / linearDepthTraversal);
         dir *= 1.0 - offsetAmount;
     }
+    
     vec4 screenStart = projModView * vec4(playerStart, 1.0);
-    screenStart /= screenStart.w;
     vec4 screenEnd = projModView * vec4(playerStart + dir, 1.0);
+    screenStart /= screenStart.w;
     screenEnd /= screenEnd.w;
     screenStart.xyz = 0.5 * screenStart.xyz + 0.5;
     screenEnd.xyz = 0.5 * screenEnd.xyz + 0.5;
+    if (screenStart.xy != clamp(screenStart.xy, 0.0, 1.0)) {
+        for (int k = 0; k < 8; k++) {
+            vec3 newAttempt = mix(screenStart.xyz, screenEnd.xyz, 0.1);
+            if (newAttempt.xy == clamp(newAttempt.xy, 0.0, 1.0)) {
+                break;
+            } else {
+                screenStart.xyz = newAttempt;
+            }
+        }
+    }
+    if (screenEnd.xy != clamp(screenEnd.xy, 0.0, 1.0)) {
+        for (int k = 0; k < 8; k++) {
+            vec3 newAttempt = mix(screenStart.xyz, screenEnd.xyz, 0.9);
+            if (newAttempt.xy == clamp(newAttempt.xy, 0.0, 1.0)) {
+                break;
+            } else {
+                screenEnd.xyz = newAttempt;
+            }
+        }
+    }
+
     vec3 screenVec = screenEnd.xyz - screenStart.xyz;
 
-    #ifndef FINE_SSRT
-        vec3 screenHit = coarseSSRT(screenStart.xyz, screenVec, dither);
-        normal = texture(colortex1, screenHit.xy).rgb * 2.0 - 1.0;
-        vec4 playerHit = projModViewInv * vec4(screenHit * 2.0 - 1.0, 1.0);
-        if (abs(screenHit.x - screenStart.x) > abs(screenVec.x)) {
-            return start + 2 * dir0;
-        }
-        return playerHit.xyz / playerHit.w + cameraPositionFract + VOXEL_DIST;
-    #endif
-
-    bool wasEverOnScreen = false;
-    screenVec /= infnorm(vec2(viewWidth, viewHeight) * screenVec.xy);
-    vec3 screenPos = screenStart.xyz;
-    const int maxLodLevel = 7;
-    int lodLevel = 4;
-    for (int k = 0; k < 100; k++) {
-        if (clamp(screenPos, 0.0, 1.0) == screenPos) {
-            wasEverOnScreen = true;
-        } else if (wasEverOnScreen) {
-            break;
-        }
-        if (wasEverOnScreen) {
-            bool reducedLodLevel = false;
-            while (lodLevel >= 2) {
-                float nextZ = screenPos.z + screenVec.z * (1<<lodLevel);
-                ivec2 lodCoord =
-                    (ivec2(screenPos.xy * vec2(viewWidth, viewHeight)) >> lodLevel) +
-                    ivec2(0, int(viewHeight + 0.5) * ((1<<lodLevel-1)-1) / (1<<lodLevel-1));
-                vec2 zrange = texelFetch(colortex2, lodCoord, 0).xy;
-                if (
-                    zrange.x < max(nextZ, screenPos.z) &&
-                    zrange.y > min(nextZ, screenPos.z)
-                ) {
-                    lodLevel --;
-                    reducedLodLevel = true;
-                } else {
-                    break;
-                }
-            }
-            if (!reducedLodLevel && k%7 == 3) {
-                while (lodLevel < maxLodLevel-1) {
-                    lodLevel++;
-                    float nextZ = screenPos.z + screenVec.z * (1<<lodLevel);
-                    ivec2 lodCoord =
-                        (ivec2(screenPos.xy * vec2(viewWidth, viewHeight)) >> lodLevel) +
-                        ivec2(0, int(viewHeight + 0.5) * ((1<<lodLevel-1)-1) / (1<<lodLevel-1));
-                    vec2 zrange = texelFetch(colortex2, lodCoord, 0).xy;
-                    if (
-                        zrange.x < max(nextZ, screenPos.z) &&
-                        zrange.y > min(nextZ, screenPos.z)
-                    ) {
-                        lodLevel--;
-                        break;
-                    }
-                }
-            }
-            if (lodLevel < 2) {
-                screenPos += dither * (1<<lodLevel) * screenVec;
-                float leniency = 0.4 * ((1.0 - screenPos.z) * (1.0 - screenPos.z));
-                float thisZDiff = textureLod(depthtex1, screenPos.xy, 0).r + 0.3 * leniency - screenPos.z;
-                if (abs(thisZDiff) < leniency) {
-                    normal = texture(colortex1, screenPos.xy).rgb * 2.0 - 1.0;
-                    vec4 playerPos =
-                        projModViewInv *
-                        (vec4(screenPos, 1.0) * 2.0 - 1.0);
-                    return playerPos.xyz / playerPos.w + cameraPositionFract + VOXEL_DIST;
-                }
-            }
-        }
-        screenPos += screenVec * (1<<lodLevel);
+    vec3 screenHit = coarseSSRT(screenStart.xyz, screenVec, dither);
+    normal = texture(colortex1, screenHit.xy).rgb * 2.0 - 1.0;
+    vec4 playerHit = projModViewInv * vec4(screenHit * 2.0 - 1.0, 1.0);
+    if (abs(screenHit.x - screenStart.x) > abs(screenVec.x)) {
+        return start + 2 * dir0;
     }
-    return start + 2.0 * dir0;
+    return playerHit.xyz / playerHit.w + cameraPositionFract + VOXEL_DIST;
 }
 
 vec3 hybridRT(vec3 start, vec3 dir) {
@@ -188,9 +143,8 @@ vec3 hybridRT(vec3 start, vec3 dir) {
     #ifdef DO_VOXEL_RT
     if (length(hitPos - start) > length(dir))
         hitPos = voxelRT(start, dir, normal, emissive);
-    else
     #endif //DO_VOXEL_RT
-        hitPos -= 0.1 * normal;
+    hitPos -= 0.1 * normal;
     return hitPos;
 }
 

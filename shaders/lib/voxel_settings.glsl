@@ -1,4 +1,8 @@
 #define VOXEL_DIST 128
 #define TEXTURE_RES 16
-//#define FINE_SSRT
 #define MAX_LIGHT_COUNT 512
+#define SHADOW_CULLING
+#define LIGHT_TRACE_LENGTH 30.0
+
+#ifdef SHADOW_CULLING
+#endif

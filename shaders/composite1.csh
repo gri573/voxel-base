@@ -27,77 +27,126 @@ uniform sampler2D depthtex1;
 #include "/lib/raytrace.glsl"
 
 shared uint lightLocs[MAX_LIGHT_COUNT];
-shared bool lightVisibilities[MAX_LIGHT_COUNT];
-shared bool skipTrace[MAX_LIGHT_COUNT];
+shared uint lightVisibilities[MAX_LIGHT_COUNT/32];
 shared uint lightHashMap[128];
+shared vec3 cornerVoxelPos[4];
+shared vec3 cornerNormal[4];
 
 shared int lightCount;
 
 void main() {
     generateSeed(ivec2(gl_GlobalInvocationID.xy), frameCounter);
-    ivec2 writeCoord = ivec2(gl_GlobalInvocationID.xy);
-    ivec2 screenCoord = ivec2(writeCoord / workGroupsRender);
-    int index = int(gl_LocalInvocationIndex);
 
-    if (index == 0) {
-        lightCount = 0;
-    }
-    if (index < MAX_LIGHT_COUNT) {
-        lightHashMap[index] = 0u;
-        lightVisibilities[index] = false;
-    }
     memoryBarrierShared();
     barrier();
 
-    uint prevLight = imageLoad(colorimg3, writeCoord).r;
-    if (prevLight != 0u) {
-        ivec3 prevLightPos = ivec3(
-            prevLight & (1u<<11)-1u,
-            prevLight >> 11 & (1u<<10)-1u,
-            prevLight >> 21
-        ) + (previousCameraPositionInt - cameraPositionInt);
-        if (
-            all(greaterThanEqual(prevLightPos, ivec3(0))) &&
-            all(lessThan(prevLightPos, ivec3(2 * VOXEL_DIST)))
-        ) {
-            ivec3 subIndex = prevLightPos%2;
-            uint lightHash = posHash(prevLightPos) % (128 * 32);
-            int bitOffset = 4 * (subIndex.x + subIndex.y * 2 + subIndex.z * 4) + 3;
-            if ((imageLoad(voxelImg, prevLightPos/2).r & (1u<<bitOffset)) != 0u) {
-                imageStore(colorimg0, writeCoord, vec4(1, 0, 1, 1));
-                if ((atomicOr(lightHashMap[lightHash/32], 1u<<lightHash%32) & 1<<lightHash%32) == 0u) {
-                    int lightIndex = atomicAdd(lightCount, 1);
-                    if (lightIndex < MAX_LIGHT_COUNT) {
-                        uint offsetPrevLight =
-                            uint(prevLightPos.x) +
-                            (uint(prevLightPos.y) << 11) +
-                            (uint(prevLightPos.z) << 21);
-                        lightLocs[lightIndex] = offsetPrevLight;
-                    }
-                }
-            }
-        }
-    }
+    ivec2 writeCoord = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 screenCoord = ivec2(writeCoord / workGroupsRender + 0.5);
+    int index = int(gl_LocalInvocationIndex);
     vec4 screenPos = vec4(screenCoord / vec2(viewWidth, viewHeight), texelFetch(depthtex1, screenCoord, 0).r, 1.0);
     vec3 normal = texelFetch(colortex1, screenCoord, 0).xyz * 2.0 - 1.0;
     vec4 playerPos = gbufferModelViewInverse * gbufferProjectionInverse * (screenPos * 2.0 - 1.0);
     playerPos /= playerPos.w;
     vec3 voxelPos = playerPos.xyz + cameraPositionFract + VOXEL_DIST;
-    vec3 biasedVoxelPos = voxelPos + 0.03 * normal;
+    vec3 biasedVoxelPos = voxelPos + 0.05 * normal;
+    if (index < 4) {
+        ivec2 cornerCoord = ivec2((
+            ivec2(gl_WorkGroupSize.xy * gl_WorkGroupID.xy) +
+            (ivec2(gl_WorkGroupSize.xy) - 1) * ivec2(index%2, index/2)
+        ) / workGroupsRender + 0.5);
+        vec4 cornerScreenPos = vec4(cornerCoord / vec2(viewWidth, viewHeight), texelFetch(depthtex1, cornerCoord, 0).r, 1.0);
+        cornerNormal[index] = texelFetch(colortex1, screenCoord, 0).xyz * 2.0 - 1.0;
+        vec4 cornerPlayerPos = gbufferModelViewInverse * gbufferProjectionInverse * (cornerScreenPos * 2.0 - 1.0);
+        cornerPlayerPos /= cornerPlayerPos.w;
+        cornerVoxelPos[index] = cornerPlayerPos.xyz + cameraPositionFract + VOXEL_DIST + 0.05 * cornerNormal[index];
+
+    }
+    if (index == 0) {
+        lightCount = 0;
+    }
+    if (index < MAX_LIGHT_COUNT) {
+        lightHashMap[index] = 0u;
+    }
+    if (index < MAX_LIGHT_COUNT/32) {
+        lightVisibilities[index] = 0u;
+    }
+    memoryBarrierShared();
+    barrier();
+
+    for (int lightReadIndex = 0; lightReadIndex < 5; lightReadIndex++) {
+        ivec2 lightReadCoord =
+            writeCoord +
+            int(lightReadIndex != 0) *
+            (lightReadIndex/2*2-1) *
+            ((lightReadIndex + ivec2(0, 1))%2) *
+            ivec2(gl_WorkGroupSize.xy);
+        if (
+            any(lessThan(lightReadCoord, ivec2(0))) ||
+            any(greaterThanEqual(lightReadCoord, ivec2(viewWidth, viewHeight)))
+        ) continue;
+        uint prevLight = imageLoad(colorimg3, lightReadCoord).r;
+        if (prevLight == 0u) continue;
+        ivec3 prevLightPos = ivec3(
+            prevLight & (1u<<11)-1u,
+            prevLight >> 11 & (1u<<10)-1u,
+            prevLight >> 21
+        ) + (previousCameraPositionInt - cameraPositionInt);
+        uint lightHash = posHash(prevLightPos) % (128 * 32);
+        ivec3 subIndex = prevLightPos%2;
+        int bitOffset = 4 * (subIndex.x + subIndex.y * 2 + subIndex.z * 4) + 3;
+        if (
+            any(lessThan(prevLightPos, ivec3(0))) ||
+            any(greaterThanEqual(prevLightPos, ivec3(2 * VOXEL_DIST))) ||
+            (lightHashMap[lightHash/32] & 1<<lightHash%32) != 0 ||
+            (imageLoad(voxelImg, prevLightPos/2).r & (1u<<bitOffset)) == 0u
+        ) continue;
+        light_t unpackedPrevLight = unpackLightData(lightArray[posHash(prevLightPos)%1000000]);
+        vec3 lightPos = prevLightPos + unpackedPrevLight.relPos - 1.0;
+        bool visible = false;
+        for (int cornerIndex = 0; cornerIndex < 4; cornerIndex++) {
+            vec3 thisVxPos = cornerVoxelPos[cornerIndex];
+            if (
+                thisVxPos == clamp(thisVxPos, 0.0, 2.0 * VOXEL_DIST) &&
+                dot(lightPos - thisVxPos, cornerNormal[cornerIndex]) > -0.5
+            ) {
+                vec3 hitNormal;
+                bool hitEmission = false;
+                vec3 hitPos = hybridRT(thisVxPos, lightPos - thisVxPos);
+                if (dot(normalize(lightPos - thisVxPos), hitPos - lightPos) > -2.0) {
+                    visible = true;
+                    break;
+                }
+            }
+        }
+        if (visible) {
+            if ((atomicOr(lightHashMap[lightHash/32], 1u<<lightHash%32) & 1<<lightHash%32) == 0u) {
+                int lightIndex = atomicAdd(lightCount, 1);
+                if (lightIndex < MAX_LIGHT_COUNT) {
+                    uint offsetPrevLight =
+                        uint(prevLightPos.x) +
+                        (uint(prevLightPos.y) << 11) +
+                        (uint(prevLightPos.z) << 21);
+                    lightLocs[lightIndex] = offsetPrevLight;
+                }
+            }
+        }
+    }
     if (screenPos.z < 0.9999) {
         vec3 dir = randomCosineWeightedHemisphereSample(normal);
         vec3 hitNormal;
         bool hitEmission = true;
-        vec3 startOffset = vec3(nextFloat(), nextFloat(), nextFloat()) * 2.0 - 1.0 + normal;
-        vec3 hitPos = voxelRT(biasedVoxelPos + startOffset, 30.0 * dir, hitNormal, hitEmission);
+        vec3 hitPos = voxelRT(biasedVoxelPos, LIGHT_TRACE_LENGTH * dir, hitNormal, hitEmission);
         if (hitEmission) {
-            ivec3 hitCoords = ivec3(hitPos - 0.5 * abs(hitNormal));
-            uint hitHash = posHash(hitCoords) % (128 * 32);
-            if ((atomicOr(lightHashMap[hitHash/32], 1u<<hitHash%32) & 1u<<hitHash%32) == 0) {
-                int lightIndex = atomicAdd(lightCount, 1);
-                if (lightIndex < MAX_LIGHT_COUNT) {
-                    uint packedPos = hitCoords.x | hitCoords.y << 11 | hitCoords.z << 21;
-                    lightLocs[lightIndex] = packedPos;
+            ivec3 hitCoords = ivec3(hitPos - 0.2 * abs(hitNormal));
+            vec3 confirmation = hybridRT(biasedVoxelPos, hitPos - biasedVoxelPos);
+            if (length(confirmation - biasedVoxelPos) > length(hitPos - biasedVoxelPos) - 2.0) {
+                uint hitHash = posHash(hitCoords) % (128 * 32);
+                if ((atomicOr(lightHashMap[hitHash/32], 1u<<hitHash%32) & 1u<<hitHash%32) == 0) {
+                    int lightIndex = atomicAdd(lightCount, 1);
+                    if (lightIndex < MAX_LIGHT_COUNT) {
+                        uint packedPos = hitCoords.x | hitCoords.y << 11 | hitCoords.z << 21;
+                        lightLocs[lightIndex] = packedPos;
+                    }
                 }
             }
         }
@@ -114,19 +163,21 @@ void main() {
             );
             uint lightHash = posHash(lightCoords) % 1000000;
             light_t light = unpackLightData(lightArray[lightHash]);
-            vec3 lightDir = lightCoords + light.relPos - voxelPos;
+            vec3 lightPos = lightCoords + light.relPos;
+            vec3 lightDir = lightPos - voxelPos;
             float ndotl = dot(normal, normalize(lightDir));
             float dirLen = length(lightDir);
-            if (ndotl > 0.0 && dirLen < 30) {
-                vec3 lightPos = voxelPos + lightDir;
+            if (ndotl > 0.0 && dirLen < LIGHT_TRACE_LENGTH * light.brightness) {
+                vec3 hitPos = lightPos;
                 vec3 rtDir = lightPos + randomSphereSample() * 0.1 - biasedVoxelPos;
-                vec3 hitPos = hybridRT(biasedVoxelPos, rtDir);
-                if (
-                    floor(mix(hitPos, lightPos, 0.05)) == floor(lightPos) ||
+                hitPos = hybridRT(biasedVoxelPos, rtDir);
+                bool visible = (
+                    floor(mix(hitPos, lightPos, 0.01)) == floor(lightPos) ||
                     length(hitPos - voxelPos) >= dirLen - 0.5
-                ) {
-                    blockLight += light.col * ndotl * 2.0 / (dirLen * dirLen + 0.1);
-                    lightVisibilities[k] = true;
+                );
+                if (visible) {
+                    blockLight += light.col * light.brightness * ndotl * 2.0 / (dirLen * dirLen + 0.1);
+                    atomicOr(lightVisibilities[k/32], 1u<<k%32);
                 }
                 if (!(hitPos == hitPos)) {
                     blockLight = vec3(1.0, 0.0, 1.0);
@@ -142,7 +193,7 @@ void main() {
     memoryBarrierShared();
     barrier();
     uint lightToStore = 0u;
-    if (index < min(lightCount, MAX_LIGHT_COUNT) && lightVisibilities[index]) {
+    if (index < min(lightCount, MAX_LIGHT_COUNT) && (lightVisibilities[index/32] & 1u<<index%32) != 0u) {
         lightToStore = lightLocs[index];
     }
     imageStore(colorimg3, writeCoord, uvec4(lightToStore));
