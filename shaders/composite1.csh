@@ -172,8 +172,9 @@ void main() {
                 if (visible) {
                     vec3 thisLight = light.col * light.brightness * ndotl * 2.0 / (dirLen * dirLen + 0.1);
                     blockLight += thisLight;
-                    atomicAdd(lightVisibilities[k], int(100.0 * length(thisLight)));
-                    atomicAdd(totalLightVisibility, int(100.0 * length(thisLight)));
+                    int visibilityAddend = int((100.0 + nextFloat()) * length(thisLight));
+                    atomicAdd(lightVisibilities[k], visibilityAddend);
+                    atomicAdd(totalLightVisibility, visibilityAddend);
                 }
                 if (!(hitPos == hitPos)) {
                     blockLight = vec3(1.0, 0.0, 1.0);
