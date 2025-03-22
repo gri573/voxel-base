@@ -110,8 +110,6 @@ void main() {
                     visible = true;
                     break;
                 }
-            } else {
-                imageStore(colorimg0, writeCoord, vec4(1, 0, 1, 1));
             }
         }
         if (visible) {
@@ -127,7 +125,7 @@ void main() {
             }
         }
     }
-    if (nextFloat() > 0.99 && screenPos.z < 0.9999) {
+    if (nextFloat() < LIGHT_DISCOVERY_RATE && screenPos.z < 0.9999) {
         vec3 dir = randomCosineWeightedHemisphereSample(normal);
         vec3 hitNormal;
         bool hitEmission = true;
