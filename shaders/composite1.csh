@@ -1,6 +1,18 @@
 #version 430
 
-const vec2 workGroupsRender = vec2(1.0, 1.0);
+#include "/lib/blocklight_settings.glsl"
+
+#if BLOCKLIGHT_RES == 1
+    const vec2 workGroupsRender = vec2(1.0, 1.0);
+#elif BLOCKLIGHT_RES == 2
+    const vec2 workGroupsRender = vec2(0.5, 0.5);
+#elif BLOCKLIGHT_RES == 3
+    const vec2 workGroupsRender = vec2(0.33333334, 0.33333334);
+#elif BLOCKLIGHT_RES == 5
+    const vec2 workGroupsRender = vec2(0.2, 0.2);
+#elif BLOCKLIGHT_RES == 8
+    const vec2 workGroupsRender = vec2(0.125, 0.125);
+#endif
 
 layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 

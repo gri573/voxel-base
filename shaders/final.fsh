@@ -12,7 +12,9 @@ const int colortex4Format = rgba16f;
 
 const bool colortex3Clear = false;
 
+#include "/lib/blocklight_settings.glsl"
+
 void main() {
     gl_FragData[0] = texelFetch(colortex0, ivec2(gl_FragCoord.xy), 0);
-    gl_FragData[0].xyz *= texelFetch(colortex4, ivec2(gl_FragCoord.xy), 0).rgb * 3 + 0.4;
+    gl_FragData[0].xyz *= texelFetch(colortex4, ivec2(gl_FragCoord.xy / BLOCKLIGHT_RES), 0).rgb * 3 + 0.4;
 }
